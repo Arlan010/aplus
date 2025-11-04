@@ -16,7 +16,7 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
 
   Future<void> sendResetCode() async {
     setState(() => isLoading = true);
-    final url = Uri.parse('http://localhost:3001/forgot-password');
+    final url = Uri.parse('http://10.0.2.2:3001/forgot-password');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

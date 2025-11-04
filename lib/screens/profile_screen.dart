@@ -33,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchUserData() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3001/user/${widget.email}'),
+        Uri.parse('http://10.0.2.2:3001/user/${widget.email}'),
       );
 
       if (response.statusCode == 200) {
@@ -58,7 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _updateProfile() async {
     try {
       final response = await http.put(
-        Uri.parse('http://localhost:3001/user/${widget.email}'),
+        Uri.parse('http://10.0.2.2:3001/user/${widget.email}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'full_name': _nameController.text,
@@ -116,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text("Сақтау"),
             onPressed: () async {
               final response = await http.put(
-                Uri.parse('http://localhost:3001/user/${widget.email}/password'),
+                Uri.parse('http://10.0.2.2:3001/user/${widget.email}/password'),
                 headers: {'Content-Type': 'application/json'},
                 body: jsonEncode({
                   'oldPassword': oldPassController.text,

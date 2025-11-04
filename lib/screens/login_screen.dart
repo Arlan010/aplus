@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passController = TextEditingController();
 
   Future<void> loginUser() async {
-    final url = Uri.parse('http://localhost:3001/login');
+    final url = Uri.parse('http://10.0.2.2:3001/login');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

@@ -54,7 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    final url = Uri.parse('http://localhost:3001/register');
+    final url = Uri.parse('http://10.0.2.2:3001/register');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
