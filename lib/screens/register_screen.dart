@@ -20,6 +20,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController passController = TextEditingController();
   final TextEditingController confirmPassController = TextEditingController();
 
+  String selectedSystem = '100';
+
   String? validatePassword(String password) {
     if (password.length < 8) {
       return 'Құпиясөз кемінде 8 таңбадан тұруы керек';
@@ -62,6 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'full_name': nameController.text,
         'email': emailController.text,
         'password': password,
+        'gradingSystem': selectedSystem,
       }),
     );
 
@@ -227,6 +230,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
                 scaleW: scaleW,
                 scaleH: scaleH,
+              ),
+
+              SizedBox(height: 20 * scaleH),
+
+              _buildLabel('Баға жүйесі', scaleW),
+              SizedBox(height: 6 * scaleH),
+              SizedBox(
+                width: 327 * scaleW,
+                height: 48 * scaleH,
+                child: DropdownButtonFormField<String>(
+                  value: selectedSystem,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12 * scaleW),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                        vertical: 10 * scaleH, horizontal: 20 * scaleW),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: '100',
+                      child: Text(
+                        '100 баллдық жүйе',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16 * scaleW,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: '5',
+                      child: Text(
+                        '5 баллдық жүйе',
+                        style: TextStyle(
+                          fontFamily: 'Montserrat',
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16 * scaleW,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSystem = value!;
+                    });
+                  },
+                ),
               ),
 
               SizedBox(height: 40 * scaleH),

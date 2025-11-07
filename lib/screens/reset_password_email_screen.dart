@@ -47,7 +47,13 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Құпиясөзді қалпына келтіру')),
+      backgroundColor: Colors.white,
+        appBar: AppBar(
+        title: const Text('Құпиясөзді қалпына келтіру'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(

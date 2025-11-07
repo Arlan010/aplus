@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'grades_diary_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
@@ -16,21 +18,97 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen> {
   int _selectedIndex = 1;
   int _currentTab = 0;
-  double gpa = 3.75;
+
+  bool isLoading = true;
+  double gpa100 = 0;
+  double gpa4 = 0;
+  List<Map<String, dynamic>> subjects = [];
 
   final TextEditingController desiredGradeController = TextEditingController();
-
-  String selectedExamType = 'Рубежка';
-  String selectedSubject = 'Математика';
-  String calculatedExamGrade = '-';
-
-  final List<String> examTypes = ['Рубежка', 'Сессия', 'СОР', 'СОЧ'];
-  final List<String> subjects = ['Математика', 'Физика', 'Информатика'];
+  String selectedSubject = "";
+  String calculatedExamGrade = "-";
 
   @override
   void initState() {
     super.initState();
     _currentTab = widget.initialTab;
+    _fetchSubjectsAndGPA();
+  }
+
+  Future<void> _fetchSubjectsAndGPA() async {
+    try {
+      setState(() => isLoading = true);
+
+      final gradesUrl = Uri.parse('http://10.0.2.2:3001/grades/${widget.email}');
+      final gradesResponse = await http.get(gradesUrl);
+
+      final gpaUrl = Uri.parse('http://10.0.2.2:3001/grades/gpa/${widget.email}');
+      final gpaResponse = await http.get(gpaUrl);
+
+      if (gradesResponse.statusCode == 200 && gpaResponse.statusCode == 200) {
+        final List<dynamic> gradesData = jsonDecode(gradesResponse.body);
+        final gpaData = jsonDecode(gpaResponse.body);
+
+        setState(() {
+          subjects = gradesData.map((subj) {
+            return {
+              "subject": subj["subject"],
+              "grades": subj["grades"]
+                  .map((g) => {"date": g["date"], "grade": g["grade"]})
+                  .toList(),
+            };
+          }).toList();
+
+          if (subjects.isNotEmpty) {
+            selectedSubject = subjects.first["subject"];
+          }
+
+          gpa100 = double.tryParse(gpaData["gpa100"].toString()) ?? 0.0;
+          gpa4 = double.tryParse(gpaData["gpa4"].toString()) ?? 0.0;
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Қате: $e')),
+      );
+    }
+  }
+
+  Future<void> _calculateRequiredScore() async {
+    final desiredText = desiredGradeController.text;
+    if (desiredText.isEmpty || selectedSubject.isEmpty) return;
+
+    try {
+      final url = Uri.parse('http://10.0.2.2:3001/grades/required-score');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "email": widget.email,
+          "subject": selectedSubject,
+          "targetAverage": double.tryParse(desiredText),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          calculatedExamGrade = data["requiredScore"].toString();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Қате: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Қате: $e')),
+      );
+    }
   }
 
   void _onItemTapped(int index) {
@@ -38,43 +116,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     switch (index) {
       case 0:
         Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(email: widget.email),
-        ),
-      );
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen(email: widget.email)),
+        );
         break;
       case 1:
         break;
       case 2:
         Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GradesDiaryScreen(email: widget.email),
-        ),
-      );
+          context,
+          MaterialPageRoute(builder: (context) => GradesDiaryScreen(email: widget.email)),
+        );
         break;
       case 3:
         Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProfileScreen(email: widget.email),
-        ),
-      );
+          context,
+          MaterialPageRoute(builder: (context) => ProfileScreen(email: widget.email)),
+        );
         break;
     }
-  }
-
-  void _calculateGPA() {
-    setState(() {
-      gpa = 3.92;
-    });
-  }
-
-  void _calculateExamGrade() {
-    setState(() {
-      calculatedExamGrade = '85';
-    });
   }
 
   Widget _buildSwitchButton({
@@ -111,248 +171,234 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildGpaCalculator(double scaleW, double scaleH) {
-    final subjects = {
-      'Математика': 95,
-      'Физика': 88,
-      'Информатика': 92,
-    };
+  return isLoading
+      ? const Center(child: CircularProgressIndicator())
+      : Padding(
+          padding: EdgeInsets.symmetric(vertical: 50 * scaleH),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ...subjects.map((entry) {
+                double avg = 0;
+                if (entry["grades"].isNotEmpty) {
+                  avg = entry["grades"]
+                          .map((g) => g["grade"] as num)
+                          .reduce((a, b) => a + b) /
+                      entry["grades"].length;
+                }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(height: 30 * scaleH),
+                return Container(
+                  width: 327 * scaleW,
+                  height: 48 * scaleH,
+                  margin: EdgeInsets.only(bottom: 12 * scaleH),
+                  padding: EdgeInsets.symmetric(horizontal: 16 * scaleW),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F0F0),
+                    borderRadius: BorderRadius.circular(12 * scaleW),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        entry["subject"],
+                        style: TextStyle(
+                          fontSize: 16 * scaleW,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          fontFamily: 'Montserrat',
+                        ),
+                      ),
+                      Text(
+                        avg.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontSize: 16 * scaleW,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          fontFamily: 'Montserrat',
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
 
-        Column(
-          children: subjects.entries.map((entry) {
-            return Container(
-              width: 327 * scaleW,
-              height: 48 * scaleH,
-              margin: EdgeInsets.only(bottom: 12 * scaleH),
-              padding: EdgeInsets.symmetric(horizontal: 16 * scaleW),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F0F0),
-                borderRadius: BorderRadius.circular(12 * scaleW),
+              SizedBox(height: 25 * scaleH),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          GradesDiaryScreen(email: widget.email),
+                    ),
+                  );
+                },
+                child: Text(
+                  "Бағаларды өзгерту",
+                  style: TextStyle(
+                    fontSize: 20 * scaleW,
+                    color: const Color(0xFF20409A),
+                    fontWeight: FontWeight.w400,
+                    fontFamily: 'Montserrat',
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    entry.key,
+
+              SizedBox(height: 35 * scaleH),
+
+              Text(
+                "Орташа GPA (4.0): ${gpa4.toStringAsFixed(2)}",
+                style: TextStyle(
+                  fontSize: 22 * scaleW,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Montserrat',
+                ),
+              ),
+
+              SizedBox(height: 25 * scaleH),
+
+              SizedBox(
+                width: 180 * scaleW,
+                height: 50 * scaleH,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD9D9D9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100 * scaleW),
+                    ),
+                  ),
+                  onPressed: _fetchSubjectsAndGPA,
+                  child: Text(
+                    "Есептеу",
                     style: TextStyle(
-                      fontSize: 16 * scaleW,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 20 * scaleW,
                       color: Colors.black,
+                      fontWeight: FontWeight.w500,
                       fontFamily: 'Montserrat',
                     ),
                   ),
-                  Text(
-                    entry.value.toString(),
-                    style: TextStyle(
-                      fontSize: 16 * scaleW,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                      fontFamily: 'Montserrat',
-                    ),
-                  ),
-                ],
+                ),
               ),
-            );
-          }).toList(),
-        ),
-
-        SizedBox(height: 20 * scaleH),
-
-        TextButton(
-          onPressed: () {
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => GradesDiaryScreen(email: widget.email),
-              ),
-            );
-          },
-          child: Text(
-            "Бағаларды өзгерту",
-            style: TextStyle(
-              fontSize: 20 * scaleW,
-              color: const Color(0xFF20409A),
-              fontWeight: FontWeight.w400,
-              fontFamily: 'Montserrat',
-              decoration: TextDecoration.underline,
-            ),
+            ],
           ),
-        ),
+        );
+}
 
-        SizedBox(height: 20 * scaleH),
 
-        Text(
-          "Орташа GPA: ${gpa.toStringAsFixed(2)}",
-          style: TextStyle(
-            fontSize: 20 * scaleW,
-            fontWeight: FontWeight.w400,
-            fontFamily: 'Montserrat',
-          ),
-        ),
-
-        SizedBox(height: 20 * scaleH),
-
-        SizedBox(
-          width: 163.5 * scaleW,
-          height: 48 * scaleH,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD9D9D9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(100 * scaleW),
-              ),
-            ),
-            onPressed: _calculateGPA,
-            child: Text(
-              "Есептеу",
-              style: TextStyle(
-                fontSize: 20 * scaleW,
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Montserrat',
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildExamCalculator(double scaleW, double scaleH) {
-    return Column(
-      children: [
-        SizedBox(height: 30 * scaleH),
-
-        SizedBox(
-          width: 327 * scaleW,
-          height: 48 * scaleH,
-          child: TextField(
-            controller: desiredGradeController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: "Қалаған баға",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12 * scaleW),
+  return isLoading
+      ? const Center(child: CircularProgressIndicator())
+      : Padding(
+          padding: EdgeInsets.symmetric(vertical: 60 * scaleH),
+          child: Column(
+            children: [
+              SizedBox(
+                width: 327 * scaleW,
+                height: 48 * scaleH,
+                child: TextField(
+                  controller: desiredGradeController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Қалаған орташа баға",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12 * scaleW),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
 
-        SizedBox(height: 20 * scaleH),
+              SizedBox(height: 25 * scaleH),
 
-        SizedBox(
-          width: 327 * scaleW,
-          height: 48 * scaleH,
-          child: DropdownButtonFormField<String>(
-            value: selectedExamType,
-            decoration: InputDecoration(
-              labelText: "Емтихан түрі",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12 * scaleW),
+              SizedBox(
+                width: 327 * scaleW,
+                height: 48 * scaleH,
+                child: DropdownButtonFormField<String>(
+                  value: selectedSubject.isNotEmpty ? selectedSubject : null,
+                  decoration: InputDecoration(
+                    labelText: "Пән",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12 * scaleW),
+                    ),
+                  ),
+                  items: subjects
+                      .map<DropdownMenuItem<String>>((sub) =>
+                          DropdownMenuItem<String>(
+                            value: sub["subject"] as String,
+                            child: Text(sub["subject"] as String),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() => selectedSubject = value!);
+                  },
+                ),
               ),
-            ),
-            items: examTypes
-                .map((type) => DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              setState(() => selectedExamType = value!);
-            },
-          ),
-        ),
 
-        SizedBox(height: 20 * scaleH),
+              SizedBox(height: 30 * scaleH),
 
-        SizedBox(
-          width: 327 * scaleW,
-          height: 48 * scaleH,
-          child: DropdownButtonFormField<String>(
-            value: selectedSubject,
-            decoration: InputDecoration(
-              labelText: "Пән",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12 * scaleW),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          GradesDiaryScreen(email: widget.email),
+                    ),
+                  );
+                },
+                child: Text(
+                  "Бағаларды өзгерту",
+                  style: TextStyle(
+                    fontSize: 20 * scaleW,
+                    color: const Color(0xFF20409A),
+                    decoration: TextDecoration.underline,
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
               ),
-            ),
-            items: subjects
-                .map((sub) => DropdownMenuItem(
-                      value: sub,
-                      child: Text(sub),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              setState(() => selectedSubject = value!);
-            },
-          ),
-        ),
 
-        SizedBox(height: 25 * scaleH),
+              SizedBox(height: 30 * scaleH),
 
-        TextButton(
-          onPressed: () {
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => GradesDiaryScreen(email: widget.email),
+              Text(
+                "Емтиханда $calculatedExamGrade балл жинау керек",
+                style: TextStyle(
+                  fontSize: 20 * scaleW,
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.w400,
+                ),
+                textAlign: TextAlign.center,
               ),
-            );
-          },
-          child: Text(
-            "Бағаларды өзгерту",
-            style: TextStyle(
-              fontSize: 20 * scaleW,
-              color: const Color(0xFF20409A),
-              decoration: TextDecoration.underline,
-              fontFamily: 'Montserrat',
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ),
 
-        SizedBox(height: 20 * scaleH),
+              SizedBox(height: 30 * scaleH),
 
-        Text(
-          "Емтиханда $calculatedExamGrade балл жинау керек",
-          style: TextStyle(
-            fontSize: 20 * scaleW,
-            fontWeight: FontWeight.w400,
-            fontFamily: 'Montserrat',
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        SizedBox(height: 20 * scaleH),
-
-        SizedBox(
-          width: 163.5 * scaleW,
-          height: 48 * scaleH,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD9D9D9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(100 * scaleW),
+              SizedBox(
+                width: 180 * scaleW,
+                height: 50 * scaleH,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD9D9D9),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100 * scaleW),
+                    ),
+                  ),
+                  onPressed: _calculateRequiredScore,
+                  child: Text(
+                    "Есептеу",
+                    style: TextStyle(
+                      fontSize: 20 * scaleW,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Montserrat',
+                    ),
+                  ),
+                ),
               ),
-            ),
-            onPressed: _calculateExamGrade,
-            child: Text(
-              "Есептеу",
-              style: TextStyle(
-                fontSize: 20 * scaleW,
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Montserrat',
-              ),
-            ),
+            ],
           ),
-        ),
-      ],
-    );
+        );
   }
 
   @override
@@ -373,10 +419,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           backgroundColor: const Color(0xFFF8F9FE),
           elevation: 0,
           flexibleSpace: Padding(
-            padding: EdgeInsets.only(
-              top: 45 * scaleH,
-              bottom: 10 * scaleH,
-            ),
+            padding: EdgeInsets.only(top: 45 * scaleH, bottom: 10 * scaleH),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -400,7 +443,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ),
       ),
-
       body: SingleChildScrollView(
         child: Center(
           child: Padding(
@@ -411,7 +453,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           ),
         ),
       ),
-
       bottomNavigationBar: SizedBox(
         height: 105 * scaleH,
         child: BottomNavigationBar(

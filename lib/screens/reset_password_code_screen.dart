@@ -51,7 +51,13 @@ class _ResetPasswordCodeScreenState extends State<ResetPasswordCodeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Код енгізу')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Код енгізу'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(

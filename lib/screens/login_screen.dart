@@ -41,9 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => HomeScreen(
-            username: data['user']['full_name'] ?? 'Пайдаланушы',
             email: data['user']['email'],
-            gpa: 3.85,
           ),
         ),
       );
