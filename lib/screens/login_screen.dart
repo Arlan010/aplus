@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:project050925/screens/register_screen.dart';
-import 'package:project050925/screens/home_screen.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'register_screen.dart';
+import 'home_screen.dart';
 import 'reset_password_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,45 +13,51 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final supabase = Supabase.instance.client;
+
   bool isLoginSelected = true;
   bool _obscurePassword = true;
+  bool _loading = false;
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passController = TextEditingController();
 
   Future<void> loginUser() async {
-    final url = Uri.parse('http://10.0.2.2:3001/login');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': emailController.text.trim(),
-        'password': passController.text.trim(),
-      }),
-    );
+    final email = emailController.text.trim();
+    final password = passController.text;
 
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? 'Кіру сәтті өтті!')),
+        const SnackBar(content: Text('Email және құпиясөзді енгізіңіз')),
       );
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await supabase.auth.signInWithPassword(email: email, password: password);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Кіру сәтті өтті!')));
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(
-            email: data['user']['email'],
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? 'Қате орын алды')),
-      );
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -73,182 +79,177 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Expanded(
                     child: GestureDetector(
+                      onTap: () => setState(() => isLoginSelected = true),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(100),
+                          color: isLoginSelected
+                              ? const Color(0xFF2DDBD2)
+                              : const Color(0xFFF4F4F4),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Кіру',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            fontFamily: 'Montserrat',
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
                       onTap: () {
-                        setState (() {
-                          isLoginSelected = true;
-                        });
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
                       },
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(100),
                           color: isLoginSelected
-                            ? const Color(0xFF2DDBD2)
-                            : const Color(0xFFF4F4F4),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'Кіру',
-                        style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Montserrat',
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterScreen()
-                      ),
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(100),
-                      color: isLoginSelected
-                        ? const Color(0xFFF4F4F4)
-                        : const Color(0xFF2DDBD2),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Тіркелу',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Montserrat',
-                        color: Colors.black,
+                              ? const Color(0xFFF4F4F4)
+                              : const Color(0xFF2DDBD2),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Тіркелу',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                            fontFamily: 'Montserrat',
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Электрондық пошта',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Montserrat',
+                  color: Colors.black,
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox (height: 40),
-
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Электрондық пошта',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Montserrat',
-              color: Colors.black,
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: emailController,
-          decoration: InputDecoration(
-            hintText: 'Электрондық пошта',
-            hintStyle: const TextStyle(fontFamily: 'Montserrat'),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            'Құпиясөз',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Montserrat',
-              color: Colors.black,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: passController,
-          obscureText: _obscurePassword,
-          decoration: InputDecoration(
-            hintText: 'Құпиясөз',
-            hintStyle: const TextStyle(fontFamily: 'Montserrat'),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword
-                  ? Icons.visibility
-                  : Icons.visibility_off,
+            const SizedBox(height: 8),
+            TextField(
+              controller: emailController,
+              decoration: InputDecoration(
+                hintText: 'Электрондық пошта',
+                hintStyle: const TextStyle(fontFamily: 'Montserrat'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 20,
+                ),
               ),
+            ),
+
+            const SizedBox(height: 20),
+
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Құпиясөз',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Montserrat',
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: passController,
+              obscureText: _obscurePassword,
+              decoration: InputDecoration(
+                hintText: 'Құпиясөз',
+                hintStyle: const TextStyle(fontFamily: 'Montserrat'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 20,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            TextButton(
               onPressed: () {
-                setState(() {
-                  _obscurePassword = !_obscurePassword;
-                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ResetPasswordEmailScreen(),
+                  ),
+                );
               },
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 15),
-
-        TextButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ResetPasswordEmailScreen(),
-              ),
-            );
-        },
-          child: const Text(
-            'Құпиясөзді ұмыттыңыз ба?',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w400,
-              fontFamily: 'Montserrat',
-              color: Color(0xFF20409A),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2DDBD2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(100),
+              child: const Text(
+                'Құпиясөзді ұмыттыңыз ба?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: 'Montserrat',
+                  color: Color(0xFF20409A),
+                ),
               ),
             ),
-            onPressed: loginUser,
-            child: const Text(
-              'Кіру',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w400,
-                fontFamily: 'Montserrat',
-                color: Colors.black,
+
+            const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2DDBD2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+                onPressed: _loading ? null : loginUser,
+                child: Text(
+                  _loading ? 'Күтіңіз...' : 'Кіру',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: 'Montserrat',
+                    color: Colors.black,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 }

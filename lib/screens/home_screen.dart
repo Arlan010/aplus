@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:project050925/screens/calculator_screen.dart';
-import 'package:project050925/screens/grades_diary_screen.dart';
-import 'package:project050925/screens/profile_screen.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'calculator_screen.dart';
+import 'grades_diary_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String email;
-
-  const HomeScreen({super.key, required this.email});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final supabase = Supabase.instance.client;
+
   int _selectedIndex = 0;
 
   String username = "Пайдаланушы";
-  double gpa = 0.0;
+  double gpa4 = 0.0;
   bool isLoading = true;
 
   @override
@@ -27,32 +27,41 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUserData();
   }
 
-  /// 📦 Получаем имя и текущий GPA
   Future<void> _fetchUserData() async {
     try {
-      // Получаем имя
-      final userUrl = Uri.parse('http://10.0.2.2:3001/user/${widget.email}');
-      final userResponse = await http.get(userUrl);
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Сессия жоқ. Қайта кіріңіз.');
 
-      if (userResponse.statusCode == 200) {
-        final userData = jsonDecode(userResponse.body);
-        username = userData['full_name'] ?? "Пайдаланушы";
+      final profile = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      username = (profile?['full_name'] ?? 'Пайдаланушы').toString();
+
+      final grades = await supabase
+          .from('grades')
+          .select('percent')
+          .eq('user_id', user.id);
+
+      double sum = 0;
+      int cnt = 0;
+      for (final g in (grades as List)) {
+        sum += (g['percent'] as num).toDouble();
+        cnt++;
       }
+      final gpa100 = cnt == 0 ? 0.0 : sum / cnt;
+      gpa4 = (gpa100 / 100.0) * 4.0;
 
-      // Получаем GPA
-      final gpaUrl = Uri.parse('http://10.0.2.2:3001/grades/gpa/${widget.email}');
-      final gpaResponse = await http.get(gpaUrl);
-
-      if (gpaResponse.statusCode == 200) {
-        final gpaData = jsonDecode(gpaResponse.body);
-        gpa = double.tryParse(gpaData['gpa4'].toString()) ?? 0.0;
-      }
-
+      if (!mounted) return;
       setState(() => isLoading = false);
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Қате: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Қате: $e")));
     }
   }
 
@@ -65,22 +74,19 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-              builder: (context) => CalculatorScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
         );
         break;
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-              builder: (context) => GradesDiaryScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const GradesDiaryScreen()),
         );
         break;
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-              builder: (context) => ProfileScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
         );
         break;
     }
@@ -126,6 +132,54 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _showLastGradeSnack() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final last = await supabase
+          .from('grades')
+          .select('date, percent, subject_id')
+          .eq('user_id', user.id)
+          .order('date', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (last == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Бағалар табылмады")));
+        return;
+      }
+
+      final subjectId = last['subject_id'];
+      final percent = (last['percent'] as num).toDouble();
+      final date = last['date'].toString();
+
+      final subj = await supabase
+          .from('subjects')
+          .select('name')
+          .eq('id', subjectId)
+          .maybeSingle();
+      final subjectName = (subj?['name'] ?? 'Пән').toString();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Соңғы баға: ${percent.toStringAsFixed(2)}% ($subjectName) — $date",
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Қате: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -164,17 +218,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: 20 * scaleW,
                             fontWeight: FontWeight.w500,
                             fontFamily: 'Montserrat',
-                            color: Colors.black,
                           ),
                         ),
                         SizedBox(width: 10 * scaleW),
                         Text(
-                          "Қазіргі GPA: ${gpa.toStringAsFixed(2)}",
+                          "Қазіргі GPA: ${gpa4.toStringAsFixed(2)}",
                           style: TextStyle(
                             fontSize: 20 * scaleW,
                             fontWeight: FontWeight.w500,
                             fontFamily: 'Montserrat',
-                            color: Colors.black,
                           ),
                         ),
                       ],
@@ -193,14 +245,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Баға қосу",
                       icon: Icons.add,
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  GradesDiaryScreen(email: widget.email)),
-                        );
-                      },
+                      onPressed: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const GradesDiaryScreen(),
+                        ),
+                      ),
                       scaleW: scaleW,
                       scaleH: scaleH,
                     ),
@@ -208,14 +258,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Емтиханда алу\nкерек бағаны\nесептеу",
                       icon: Icons.calculate,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => CalculatorScreen(
-                                  initialTab: 1, email: widget.email)),
-                        );
-                      },
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CalculatorScreen(initialTab: 1),
+                        ),
+                      ),
                       scaleW: scaleW,
                       scaleH: scaleH,
                     ),
@@ -223,39 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Соңғы алынған\nбаға",
                       icon: Icons.grade,
-                      onPressed: () async {
-                        try {
-                          final url = Uri.parse(
-                              'http://10.0.2.2:3001/grades/last/${widget.email}');
-                          final response = await http.get(url);
-
-                          if (response.statusCode == 200) {
-                            final data = jsonDecode(response.body);
-                            if (data['grade'] != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    "Соңғы баға: ${data['grade']} (${data['subject']}) — ${data['date']}",
-                                  ),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text("Бағалар табылмады")),
-                              );
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Қате орын алды")),
-                            );
-                          }
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Қате: $e")),
-                          );
-                        }
-                      },
+                      onPressed: _showLastGradeSnack,
                       scaleW: scaleW,
                       scaleH: scaleH,
                     ),
@@ -277,7 +293,9 @@ class _HomeScreenState extends State<HomeScreen> {
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
             BottomNavigationBarItem(
-                icon: Icon(Icons.calculate), label: "Калькулятор"),
+              icon: Icon(Icons.calculate),
+              label: "Калькулятор",
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
           ],

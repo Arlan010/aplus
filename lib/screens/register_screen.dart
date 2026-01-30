@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:project050925/screens/login_screen.dart';
-import 'package:project050925/screens/home_screen.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'login_screen.dart';
+import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,8 +12,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final supabase = Supabase.instance.client;
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _loading = false;
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -23,27 +26,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String selectedSystem = '100';
 
   String? validatePassword(String password) {
-    if (password.length < 8) {
-      return 'Құпиясөз кемінде 8 таңбадан тұруы керек';
-    }
-    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+    if (password.length < 8) return 'Құпиясөз кемінде 8 таңбадан тұруы керек';
+    if (!RegExp(r'[A-Z]').hasMatch(password))
       return 'Құпиясөзде кемінде бір бас әріп болуы керек';
-    }
-    if (!RegExp(r'[a-z]').hasMatch(password)) {
+    if (!RegExp(r'[a-z]').hasMatch(password))
       return 'Құпиясөзде кемінде бір кіші әріп болуы керек';
-    }
-    if (!RegExp(r'\d').hasMatch(password)) {
+    if (!RegExp(r'\d').hasMatch(password))
       return 'Құпиясөзде кемінде бір сан болуы керек';
-    }
-    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) {
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password))
       return 'Құпиясөзде кемінде бір арнайы таңба болуы керек';
-    }
     return null;
   }
 
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Қате',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> registerUser() async {
+    final fullName = nameController.text.trim();
+    final email = emailController.text.trim();
     final password = passController.text;
     final confirmPassword = confirmPassController.text;
+
+    if (fullName.isEmpty) return _showErrorDialog('Аты-жөніңізді енгізіңіз');
+    if (email.isEmpty) return _showErrorDialog('Email енгізіңіз');
 
     if (password != confirmPassword) {
       _showErrorDialog('Құпиясөздер сәйкес келмейді');
@@ -56,56 +78,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    final url = Uri.parse('http://10.0.2.2:3001/register');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'full_name': nameController.text,
-        'email': emailController.text,
-        'password': password,
-        'gradingSystem': selectedSystem,
-      }),
-    );
+    setState(() => _loading = true);
+    try {
+      final res = await supabase.auth.signUp(email: email, password: password);
 
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Тіркелу сәтті өтті')),
-      );
+      final user = res.user;
+      if (user == null) {
+        // если включено подтверждение email
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Поштаға растау хаты жіберілді. Email-ді тексеріңіз.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      // profiles: id = user.id
+      await supabase.from('profiles').insert({
+        'id': user.id,
+        'full_name': fullName,
+        'grading_view': selectedSystem,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Тіркелу сәтті өтті')));
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(email: emailController.text),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: ${response.body}')),
-      );
+    } on AuthException catch (e) {
+      _showErrorDialog(e.message);
+    } catch (e) {
+      _showErrorDialog('Қате: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Қате',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(fontSize: 16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -143,7 +155,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onTap: () {
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
                           );
                         },
                         child: Container(
@@ -196,7 +210,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               _buildLabel('Электрондық пошта', scaleW),
               SizedBox(height: 6 * scaleH),
-              _buildTextField(emailController, 'Электрондық пошта', scaleW, scaleH),
+              _buildTextField(
+                emailController,
+                'Электрондық пошта',
+                scaleW,
+                scaleH,
+              ),
 
               SizedBox(height: 20 * scaleH),
 
@@ -206,11 +225,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: passController,
                 hintText: 'Құпиясөз',
                 obscureText: _obscurePassword,
-                onToggle: () {
-                  setState(() {
-                    _obscurePassword = !_obscurePassword;
-                  });
-                },
+                onToggle: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
                 scaleW: scaleW,
                 scaleH: scaleH,
               ),
@@ -223,11 +239,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: confirmPassController,
                 hintText: 'Құпиясөзді растау',
                 obscureText: _obscureConfirmPassword,
-                onToggle: () {
-                  setState(() {
-                    _obscureConfirmPassword = !_obscureConfirmPassword;
-                  });
-                },
+                onToggle: () => setState(
+                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                ),
                 scaleW: scaleW,
                 scaleH: scaleH,
               ),
@@ -246,7 +260,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12 * scaleW),
                     ),
                     contentPadding: EdgeInsets.symmetric(
-                        vertical: 10 * scaleH, horizontal: 20 * scaleW),
+                      vertical: 10 * scaleH,
+                      horizontal: 20 * scaleW,
+                    ),
                   ),
                   items: [
                     DropdownMenuItem(
@@ -255,9 +271,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         '100 баллдық жүйе',
                         style: TextStyle(
                           fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w400,
                           fontSize: 16 * scaleW,
-                          color: Colors.black,
                         ),
                       ),
                     ),
@@ -267,18 +281,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         '5 баллдық жүйе',
                         style: TextStyle(
                           fontFamily: 'Montserrat',
-                          fontWeight: FontWeight.w400,
                           fontSize: 16 * scaleW,
-                          color: Colors.black,
                         ),
                       ),
                     ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedSystem = value!;
-                    });
-                  },
+                  onChanged: (value) =>
+                      setState(() => selectedSystem = value ?? '100'),
                 ),
               ),
 
@@ -294,9 +303,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(100 * scaleW),
                     ),
                   ),
-                  onPressed: registerUser,
+                  onPressed: _loading ? null : registerUser,
                   child: Text(
-                    'Тіркелу',
+                    _loading ? 'Күтіңіз...' : 'Тіркелу',
                     style: TextStyle(
                       fontSize: 20 * scaleW,
                       fontWeight: FontWeight.w400,
@@ -333,7 +342,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hintText, double scaleW, double scaleH) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hintText,
+    double scaleW,
+    double scaleH,
+  ) {
     return SizedBox(
       width: 327 * scaleW,
       height: 48 * scaleH,
@@ -345,7 +359,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12 * scaleW),
           ),
-          contentPadding: EdgeInsets.symmetric(vertical: 15 * scaleH, horizontal: 20 * scaleW),
+          contentPadding: EdgeInsets.symmetric(
+            vertical: 15 * scaleH,
+            horizontal: 20 * scaleW,
+          ),
         ),
       ),
     );
@@ -371,7 +388,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12 * scaleW),
           ),
-          contentPadding: EdgeInsets.symmetric(vertical: 15 * scaleH, horizontal: 20 * scaleW),
+          contentPadding: EdgeInsets.symmetric(
+            vertical: 15 * scaleH,
+            horizontal: 20 * scaleW,
+          ),
           suffixIcon: IconButton(
             iconSize: 25 * scaleW,
             icon: Icon(

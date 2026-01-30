@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'home_screen.dart';
 import 'calculator_screen.dart';
 import 'profile_screen.dart';
 
 class GradesDiaryScreen extends StatefulWidget {
-  final String email;
-
-  const GradesDiaryScreen({super.key, required this.email});
+  const GradesDiaryScreen({super.key});
 
   @override
   State<GradesDiaryScreen> createState() => _GradesDiaryScreenState();
 }
 
 class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
+  final supabase = Supabase.instance.client;
+
   int _selectedIndex = 2;
   String gradingSystem = "100";
   bool isLoading = true;
 
-  Map<String, List<Map<String, dynamic>>> grades = {};
+  // subjectName -> { id, grades: [ {id,date,percent,type} ] }
+  Map<String, Map<String, dynamic>> subjects = {};
 
   @override
   void initState() {
@@ -29,51 +30,97 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
 
   Future<void> _fetchUserAndGrades() async {
     try {
-      final userUrl = Uri.parse('http://10.0.2.2:3001/user/${widget.email}');
-      final userResponse = await http.get(userUrl);
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Сессия жоқ. Қайта кіріңіз.');
 
-      if (userResponse.statusCode == 200) {
-        final userData = jsonDecode(userResponse.body);
-        gradingSystem = userData['gradingSystem'] ?? "100";
+      final profile = await supabase
+          .from('profiles')
+          .select('grading_view')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      gradingSystem = (profile?['grading_view'] ?? '100').toString();
+
+      final subjectsRows = await supabase
+          .from('subjects')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .order('name');
+
+      final Map<String, Map<String, dynamic>> loaded = {};
+      for (final s in (subjectsRows as List)) {
+        loaded[s['name'].toString()] = {
+          'id': s['id'],
+          'grades': <Map<String, dynamic>>[],
+        };
       }
 
-      final gradesUrl = Uri.parse('http://10.0.2.2:3001/grades/${widget.email}');
-      final gradesResponse = await http.get(gradesUrl);
+      final gradesRows = await supabase
+          .from('grades')
+          .select('id, subject_id, date, percent, type')
+          .eq('user_id', user.id)
+          .order('date');
 
-      if (gradesResponse.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(gradesResponse.body);
-        Map<String, List<Map<String, dynamic>>> loaded = {};
+      for (final g in (gradesRows as List)) {
+        final subjectId = g['subject_id'];
+        final entry = loaded.entries.firstWhere(
+          (e) => e.value['id'] == subjectId,
+          orElse: () => const MapEntry('', {}),
+        );
 
-        for (var subject in data) {
-          final subjectName = subject['subject'];
-          final subjectGrades = List<Map<String, dynamic>>.from(subject['grades']);
-          loaded[subjectName] = subjectGrades;
+        if (entry.key.isNotEmpty) {
+          (entry.value['grades'] as List<Map<String, dynamic>>).add({
+            'id': g['id'],
+            'date': g['date'].toString(), // YYYY-MM-DD
+            'percent': (g['percent'] as num).toDouble(),
+            'type': (g['type'] ?? 'regular').toString(),
+          });
         }
-
-        setState(() {
-          grades = loaded;
-          isLoading = false;
-        });
-      } else {
-        setState(() => isLoading = false);
       }
+
+      if (!mounted) return;
+      setState(() {
+        subjects = loaded;
+        isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
     }
   }
 
+  double _avg(List<Map<String, dynamic>> gs) {
+    if (gs.isEmpty) return 0;
+    double sum = 0;
+    for (final g in gs) {
+      sum += (g['percent'] as double);
+    }
+    return sum / gs.length;
+  }
+
+  String _toDisplayGrade(double percent) {
+    if (gradingSystem == '5') {
+      // грубое отображение (можешь поменять)
+      if (percent >= 90) return '5';
+      if (percent >= 75) return '4';
+      if (percent >= 60) return '3';
+      return '2';
+    }
+    return percent.toStringAsFixed(1);
+  }
+
   Future<void> _addSubjectDialog(double scaleW, double scaleH) async {
-    final TextEditingController subjectController = TextEditingController();
+    final controller = TextEditingController();
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Жаңа пән қосу"),
         content: TextField(
-          controller: subjectController,
+          controller: controller,
           decoration: const InputDecoration(hintText: "Пән атауы"),
         ),
         actions: [
@@ -83,25 +130,29 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final subject = subjectController.text.trim();
-              if (subject.isEmpty) return;
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
 
-              final url = Uri.parse('http://10.0.2.2:3001/grades/add-subject');
-              final response = await http.post(
-                url,
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode({'email': widget.email, 'subject': subject}),
-              );
+              try {
+                final user = supabase.auth.currentUser;
+                if (user == null) return;
 
-              if (response.statusCode == 200) {
-                setState(() {
-                  grades[subject] = [];
+                await supabase.from('subjects').insert({
+                  'user_id': user.id,
+                  'name': name,
                 });
+
+                if (!mounted) return;
                 Navigator.pop(context);
-              } else {
-                final err = jsonDecode(response.body)['message'];
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(err)));
+                await _fetchUserAndGrades();
+              } on PostgrestException catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(e.message)));
+              } catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -117,171 +168,245 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     );
   }
 
-  void _addGrade(String subject) {
-  final TextEditingController dateController = TextEditingController();
-  final TextEditingController gradeController = TextEditingController();
-  String selectedType = "regular";
-  final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
+  Future<void> _deleteSubject(String subjectName) async {
+    final subjectId = subjects[subjectName]?['id'];
+    if (subjectId == null) return;
 
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: Text("$subject пәніне баға қосу"),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<String>(
-            value: selectedType,
-            items: types
-                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                .toList(),
-            onChanged: (val) => selectedType = val ?? "regular",
-            decoration: const InputDecoration(labelText: "Баға түрі"),
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Пәнді жою"),
+        content: Text("Сенімдісің бе \"$subjectName\" пәнін жойғың келеді ме?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Жоқ"),
           ),
-          TextField(
-            controller: dateController,
-            decoration: const InputDecoration(
-              labelText: "Күні (мысалы: 21.10.2025)",
-            ),
-          ),
-          TextField(
-            controller: gradeController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: gradingSystem == "5" ? "Баға (1-5)" : "Баға (0-100)",
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Иә"),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Болдырмау"),
+    );
+
+    if (confirm != true) return;
+
+    await supabase.from('subjects').delete().eq('id', subjectId);
+    await _fetchUserAndGrades();
+  }
+
+  Future<void> _addGrade(String subjectName) async {
+    final dateController = TextEditingController();
+    final gradeController = TextEditingController();
+    String selectedType = "regular";
+    final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
+
+    final subjectId = subjects[subjectName]?['id'];
+    if (subjectId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text("$subjectName пәніне баға қосу"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedType,
+              items: types
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: (val) => selectedType = val ?? "regular",
+              decoration: const InputDecoration(labelText: "Баға түрі"),
+            ),
+            TextField(
+              controller: dateController,
+              decoration: const InputDecoration(labelText: "Күні (YYYY-MM-DD)"),
+            ),
+            TextField(
+              controller: gradeController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: gradingSystem == "5" ? "Баға (2-5)" : "Баға (0-100)",
+              ),
+            ),
+          ],
         ),
-        ElevatedButton(
-          onPressed: () async {
-            final date = dateController.text.trim();
-            final gradeText = gradeController.text.trim();
-            double? grade = double.tryParse(gradeText);
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Болдырмау"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final user = supabase.auth.currentUser;
+                if (user == null) return;
 
-            if (date.isEmpty || grade == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Деректер дұрыс емес форматта")),
-              );
-              return;
-            }
+                final dateText = dateController.text.trim();
+                if (dateText.isEmpty)
+                  throw Exception('Күнді енгізіңіз (YYYY-MM-DD)');
 
-            final url = Uri.parse('http://10.0.2.2:3001/grades/add-grade');
-            final response = await http.post(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'email': widget.email,
-                'subject': subject,
-                'date': date,
-                'grade': grade,
-                'type': selectedType,
-              }),
-            );
+                final v = double.tryParse(gradeController.text.trim());
+                if (v == null) throw Exception('Баға дұрыс емес');
 
-            if (response.statusCode == 200) {
-              _fetchUserAndGrades();
+                double percent;
+                if (gradingSystem == '5') {
+                  final intV = v.round();
+                  if (intV < 2 || intV > 5)
+                    throw Exception('5 балл жүйеде 2-5 аралығы');
+                  // маппинг (можешь поменять)
+                  percent = intV == 5
+                      ? 95
+                      : intV == 4
+                      ? 80
+                      : intV == 3
+                      ? 65
+                      : 50;
+                } else {
+                  if (v < 0 || v > 100)
+                    throw Exception('100 балл жүйеде 0-100 аралығы');
+                  percent = v;
+                }
+
+                await supabase.from('grades').insert({
+                  'user_id': user.id,
+                  'subject_id': subjectId,
+                  'date': dateText, // YYYY-MM-DD
+                  'percent': percent,
+                  'type': selectedType,
+                });
+
+                if (!mounted) return;
+                Navigator.pop(context);
+                await _fetchUserAndGrades();
+              } catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2DDBD2),
+            ),
+            child: const Text("Қосу", style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editOrDeleteGrade(
+    String subjectName,
+    Map<String, dynamic> g,
+  ) async {
+    final gradeController = TextEditingController(
+      text: _toDisplayGrade(g['percent'] as double),
+    );
+    final dateController = TextEditingController(text: g['date'].toString());
+    String selectedType = (g['type'] ?? 'regular').toString();
+    final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
+
+    final gradeId = g['id'];
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Бағаны өзгерту немесе жою"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedType,
+              items: types
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: (val) => selectedType = val ?? "regular",
+              decoration: const InputDecoration(labelText: "Баға түрі"),
+            ),
+            TextField(
+              controller: dateController,
+              decoration: const InputDecoration(labelText: "Күні (YYYY-MM-DD)"),
+            ),
+            TextField(
+              controller: gradeController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Баға"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              try {
+                final dateText = dateController.text.trim();
+                if (dateText.isEmpty) throw Exception('Күн бос');
+
+                final v = double.tryParse(gradeController.text.trim());
+                if (v == null) throw Exception('Баға дұрыс емес');
+
+                double percent;
+                if (gradingSystem == '5') {
+                  final intV = v.round();
+                  if (intV < 2 || intV > 5)
+                    throw Exception('5 балл жүйеде 2-5 аралығы');
+                  percent = intV == 5
+                      ? 95
+                      : intV == 4
+                      ? 80
+                      : intV == 3
+                      ? 65
+                      : 50;
+                } else {
+                  if (v < 0 || v > 100) throw Exception('0-100 аралығы');
+                  percent = v;
+                }
+
+                await supabase
+                    .from('grades')
+                    .update({
+                      'date': dateText,
+                      'percent': percent,
+                      'type': selectedType,
+                    })
+                    .eq('id', gradeId);
+
+                if (!mounted) return;
+                Navigator.pop(context);
+                await _fetchUserAndGrades();
+              } catch (e) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+              }
+            },
+            child: const Text("Өзгерту"),
+          ),
+          TextButton(
+            onPressed: () async {
+              await supabase.from('grades').delete().eq('id', gradeId);
+              if (!mounted) return;
               Navigator.pop(context);
-            } else {
-              final err = jsonDecode(response.body)['message'];
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(err)));
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2DDBD2),
-          ),
-          child: const Text("Қосу", style: TextStyle(color: Colors.black)),
-        ),
-      ],
-    ),
-  );
-}
-
-void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
-  final TextEditingController gradeController =
-      TextEditingController(text: gradeData["grade"].toString());
-  final TextEditingController dateController =
-      TextEditingController(text: gradeData["date"]);
-  String selectedType = gradeData["type"] ?? "regular";
-  final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
-
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("Бағаны өзгерту немесе жою"),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<String>(
-            value: selectedType,
-            items: types
-                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                .toList(),
-            onChanged: (val) => selectedType = val ?? "regular",
-            decoration: const InputDecoration(labelText: "Баға түрі"),
-          ),
-          TextField(
-            controller: dateController,
-            decoration: const InputDecoration(labelText: "Күні"),
-          ),
-          TextField(
-            controller: gradeController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: "Баға"),
+              await _fetchUserAndGrades();
+            },
+            child: const Text("Жою", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            final url = Uri.parse('http://10.0.2.2:3001/grades/update-grade');
-            await http.put(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'email': widget.email,
-                'subject': subject,
-                'oldDate': gradeData["date"],
-                'newDate': dateController.text.trim(),
-                'newGrade': double.tryParse(gradeController.text) ?? 0,
-                'newType': selectedType,
-              }),
-            );
-            Navigator.pop(context);
-            _fetchUserAndGrades();
-          },
-          child: const Text("Өзгерту"),
-        ),
-        TextButton(
-          onPressed: () async {
-            final url = Uri.parse('http://10.0.2.2:3001/grades/delete-grade');
-            await http.delete(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({
-                'email': widget.email,
-                'subject': subject,
-                'date': gradeData["date"],
-              }),
-            );
-            Navigator.pop(context);
-            _fetchUserAndGrades();
-          },
-          child: const Text("Жою", style: TextStyle(color: Colors.red)),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSubjectTable(
-      String subject, List<Map<String, dynamic>> subjectGrades, double scaleW, double scaleH) {
+    String name,
+    Map<String, dynamic> subject,
+    double scaleW,
+    double scaleH,
+  ) {
+    final List<Map<String, dynamic>> gs = List<Map<String, dynamic>>.from(
+      subject['grades'] as List,
+    );
+
     return Container(
       margin: EdgeInsets.only(bottom: 20 * scaleH),
       padding: EdgeInsets.all(16 * scaleW),
@@ -300,91 +425,74 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    Text(
-      subject,
-      style: TextStyle(fontSize: 20 * scaleW, fontWeight: FontWeight.w700),
-    ),
-    Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: () async {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: const Text("Пәнді жою"),
-                content: Text("Сенімдісің бе \"$subject\" пәнін жойғың келеді ме?"),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Жоқ")),
-                  TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Иә")),
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 20 * scaleW,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteSubject(name),
+                  ),
+                  IconButton(
+                    onPressed: () => _addGrade(name),
+                    icon: const Icon(
+                      Icons.add_circle,
+                      color: Color(0xFF2DDBD2),
+                    ),
+                  ),
                 ],
               ),
-            );
-
-            if (confirm != true) return;
-
-            final url = Uri.parse('http://10.0.2.2:3001/grades/delete-subject');
-            final response = await http.delete(
-              url,
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode({'email': widget.email, 'subject': subject}),
-            );
-            if (response.statusCode == 200) _fetchUserAndGrades();
-          },
-        ),
-        IconButton(
-          onPressed: () => _addGrade(subject),
-          icon: const Icon(Icons.add_circle, color: Color(0xFF2DDBD2)),
-            ),
-          ],
-        ),
-      ],
-    ),
+            ],
+          ),
           const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 Column(
-                  children: [
-                    Container(
-                      width: 80 * scaleW,
-                      height: 35 * scaleH,
-                      alignment: Alignment.center,
-                      color: const Color(0xFFF8F9FE),
-                      child: const Text("Дата"),
+                  children: const [
+                    SizedBox(
+                      width: 80,
+                      height: 35,
+                      child: Center(child: Text("Дата")),
                     ),
-                    Container(
-                      width: 80 * scaleW,
-                      height: 35 * scaleH,
-                      alignment: Alignment.center,
-                      color: const Color(0xFFF8F9FE),
-                      child: const Text("Баға"),
+                    SizedBox(
+                      width: 80,
+                      height: 35,
+                      child: Center(child: Text("Баға")),
                     ),
                   ],
                 ),
                 Row(
-                  children: subjectGrades.map((entry) {
+                  children: gs.map((entry) {
                     return Column(
                       children: [
-                        Container(
-                          width: 80 * scaleW,
+                        SizedBox(
+                          width: 90 * scaleW,
                           height: 35 * scaleH,
-                          alignment: Alignment.center,
-                          child: Text(entry["date"].toString()),
+                          child: Center(child: Text(entry["date"].toString())),
                         ),
-                        Container(
-                          width: 80 * scaleW,
+                        SizedBox(
+                          width: 90 * scaleW,
                           height: 35 * scaleH,
-                          alignment: Alignment.center,
-                          child: GestureDetector(
-                            onTap: () => _editOrDeleteGrade(subject, entry),
-                            child: Text(entry["grade"].toString(),
-                              style: const TextStyle(
-                                color: Colors.blueAccent,
-                                decoration: TextDecoration.underline)),
+                          child: Center(
+                            child: GestureDetector(
+                              onTap: () => _editOrDeleteGrade(name, entry),
+                              child: Text(
+                                _toDisplayGrade(entry["percent"] as double),
+                                style: const TextStyle(
+                                  color: Colors.blueAccent,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -394,28 +502,16 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
               ],
             ),
           ),
-          FutureBuilder(
-            future: http.get(Uri.parse(
-              'http://10.0.2.2:3001/grades/subject-average/${widget.email}/$subject')),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SizedBox(height: 20);
-              }
-              if (snapshot.hasData && snapshot.data!.statusCode == 200) {
-                final data = jsonDecode(snapshot.data!.body);
-                return Padding(
-                  padding: EdgeInsets.only(top: 8 * scaleH),
-                  child: Text(
-                    "Орташа баға: ${data['average']}",
-                    style: TextStyle(
-                      fontSize: 16 * scaleW,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+          Padding(
+            padding: EdgeInsets.only(top: 8 * scaleH),
+            child: Text(
+              "Орташа баға: ${_avg(gs).toStringAsFixed(2)}%",
+              style: TextStyle(
+                fontSize: 16 * scaleW,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
           ),
         ],
       ),
@@ -428,13 +524,13 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
       case 0:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomeScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
         break;
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => CalculatorScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
         );
         break;
       case 2:
@@ -442,7 +538,7 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => ProfileScreen(email: widget.email)),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
         );
         break;
     }
@@ -486,8 +582,9 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
               padding: EdgeInsets.all(16 * scaleW),
               child: Column(
                 children: [
-                  ...grades.entries.map((entry) =>
-                      _buildSubjectTable(entry.key, entry.value, scaleW, scaleH)),
+                  ...subjects.entries.map(
+                    (e) => _buildSubjectTable(e.key, e.value, scaleW, scaleH),
+                  ),
                   SizedBox(height: 10 * scaleH),
                   TextButton(
                     onPressed: () => _addSubjectDialog(scaleW, scaleH),
@@ -515,7 +612,10 @@ void _editOrDeleteGrade(String subject, Map<String, dynamic> gradeData) {
           onTap: _onItemTapped,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(icon: Icon(Icons.calculate), label: "Калькулятор"),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calculate),
+              label: "Калькулятор",
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
           ],

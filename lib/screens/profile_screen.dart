@@ -1,28 +1,38 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'home_screen.dart';
 import 'calculator_screen.dart';
 import 'grades_diary_screen.dart';
 
+// ✅ Поменяй на свой экран “Забыли пароль / Reset password”
+import 'reset_password_email_screen.dart';
+
 class ProfileScreen extends StatefulWidget {
-  final String email;
-  const ProfileScreen({super.key, required this.email});
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final supabase = Supabase.instance.client;
+
   int _selectedIndex = 3;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _gpaController = TextEditingController();
 
   bool _isEditingName = false;
   bool _isEditingEmail = false;
   bool _isLoading = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -32,109 +42,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchUserData() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://10.0.2.2:3001/user/${widget.email}'),
-      );
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Сессия жоқ. Қайта кіріңіз.');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _nameController.text = data['full_name'] ?? '';
-          _emailController.text = data['email'] ?? '';
-          _gpaController.text = data['gpa']?.toString() ?? '3.78';
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Қате: ${response.body}');
-      }
+      final profile = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+      setState(() {
+        _nameController.text = (profile?['full_name'] ?? '').toString();
+        _emailController.text = (user.email ?? '').toString();
+        _isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
     }
   }
 
   Future<void> _updateProfile() async {
     try {
-      final response = await http.put(
-        Uri.parse('http://10.0.2.2:3001/user/${widget.email}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'full_name': _nameController.text,
-          'newEmail': _emailController.text,
-        }),
-      );
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Сессия жоқ. Қайта кіріңіз.');
 
-      final result = jsonDecode(response.body);
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Сәтті жаңартылды ✅')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Қате')),
-        );
+      final newName = _nameController.text.trim();
+      final newEmail = _emailController.text.trim();
+
+      await supabase
+          .from('profiles')
+          .update({'full_name': newName})
+          .eq('id', user.id);
+
+      final currentEmail = user.email ?? '';
+      if (newEmail.isNotEmpty && newEmail != currentEmail) {
+        await supabase.auth.updateUser(UserAttributes(email: newEmail));
       }
-    } catch (e) {
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
+        const SnackBar(content: Text('Профиль сәтті жаңартылды ✅')),
       );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
     }
   }
 
-  void _showChangePasswordDialog() {
-    final oldPassController = TextEditingController();
-    final newPassController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Құпиясөзді өзгерту"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldPassController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Ескі құпиясөз'),
-            ),
-            TextField(
-              controller: newPassController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Жаңа құпиясөз'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Болдырмау"),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2DDBD2)),
-            child: const Text("Сақтау"),
-            onPressed: () async {
-              final response = await http.put(
-                Uri.parse('http://10.0.2.2:3001/user/${widget.email}/password'),
-                headers: {'Content-Type': 'application/json'},
-                body: jsonEncode({
-                  'oldPassword': oldPassController.text,
-                  'newPassword': newPassController.text,
-                }),
-              );
-
-              final result = jsonDecode(response.body);
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(result['message'] ?? 'Қате')),
-              );
-            },
-          ),
-        ],
-      ),
-    );
+  Future<void> _logout() async {
+    await supabase.auth.signOut();
+    if (!mounted) return;
+    // ✅ возвращаемся к корню (AuthGate покажет WelcomeScreen)
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   void _onItemTapped(int index) {
@@ -142,30 +113,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     switch (index) {
       case 0:
         Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(email: widget.email),
-        ),
-      );
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
         break;
       case 1:
         Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CalculatorScreen(email: widget.email),
-        ),
-      );
+          context,
+          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
+        );
         break;
       case 2:
-      Navigator.pushReplacement(
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => GradesDiaryScreen(email: widget.email),
-          ),
+          MaterialPageRoute(builder: (_) => const GradesDiaryScreen()),
         );
+        break;
+      case 3:
         break;
     }
   }
+
+  // =========================
+  // UI helpers
+  // =========================
 
   Widget _buildEditableField({
     required String label,
@@ -236,6 +207,265 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ✅ Новая “строка” как поле, но внутри кнопка
+  Widget _buildPasswordRow({required double scaleW, required double scaleH}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 10 * scaleH),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: 8 * scaleW, bottom: 6 * scaleH),
+            child: Text(
+              "Құпиясөз",
+              style: TextStyle(
+                fontSize: 16 * scaleW,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Montserrat',
+              ),
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            height: 55 * scaleH,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FE),
+              borderRadius: BorderRadius.circular(12 * scaleW),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () =>
+                    _showChangePasswordDialog(scaleW: scaleW, scaleH: scaleH),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16 * scaleW,
+                    vertical: 10 * scaleH,
+                  ),
+                  foregroundColor: const Color(0xFF20409A),
+                ),
+                child: Text(
+                  "Құпиясөзді өзгерту",
+                  style: TextStyle(
+                    fontSize: 16 * scaleW,
+                    fontFamily: 'Montserrat',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // Change Password Dialog
+  // =========================
+
+  Future<void> _showChangePasswordDialog({
+    required double scaleW,
+    required double scaleH,
+  }) async {
+    final parentContext = context; // ✅ контекст экрана (живой)
+
+    final oldPassController = TextEditingController();
+    final newPassController = TextEditingController();
+
+    bool isSaving = false;
+    bool obscureOld = true;
+    bool obscureNew = true;
+
+    Future<void> doSave(
+      StateSetter setStateDialog,
+      BuildContext dialogContext,
+    ) async {
+      final user = supabase.auth.currentUser;
+      final email = user?.email;
+
+      final oldPass = oldPassController.text.trim();
+      final newPass = newPassController.text.trim();
+
+      if (email == null) {
+        ScaffoldMessenger.of(
+          parentContext,
+        ).showSnackBar(const SnackBar(content: Text('Email табылмады')));
+        return;
+      }
+
+      if (oldPass.isEmpty || newPass.isEmpty) {
+        ScaffoldMessenger.of(parentContext).showSnackBar(
+          const SnackBar(content: Text('Барлық өрістерді толтырыңыз')),
+        );
+        return;
+      }
+
+      if (newPass.length < 6) {
+        ScaffoldMessenger.of(parentContext).showSnackBar(
+          const SnackBar(
+            content: Text('Жаңа құпиясөз кемінде 6 таңба болуы керек'),
+          ),
+        );
+        return;
+      }
+
+      if (dialogContext.mounted) {
+        setStateDialog(() => isSaving = true);
+      }
+
+      try {
+        await supabase.auth.signInWithPassword(email: email, password: oldPass);
+        await supabase.auth.updateUser(UserAttributes(password: newPass));
+
+        if (!mounted) return;
+
+        // ✅ закрываем диалог
+        if (dialogContext.mounted) {
+          Navigator.of(dialogContext, rootNavigator: true).pop();
+        }
+
+        // ✅ snackbar после кадра (безопасно)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(parentContext).showSnackBar(
+            const SnackBar(content: Text('Құпиясөз сәтті өзгертілді ✅')),
+          );
+        });
+      } on AuthException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          parentContext,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          parentContext,
+        ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+      } finally {
+        // ✅ ВАЖНО: НЕ трогаем setStateDialog если диалог уже закрыт
+        if (dialogContext.mounted) {
+          setStateDialog(() => isSaving = false);
+        }
+      }
+    }
+
+    await showDialog(
+      context: parentContext,
+      barrierDismissible: !isSaving,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setStateDialog) {
+            return AlertDialog(
+              title: const Text(
+                'Құпиясөзді өзгерту',
+                style: TextStyle(
+                  fontFamily: 'Montserrat',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: oldPassController,
+                      obscureText: obscureOld,
+                      decoration: InputDecoration(
+                        labelText: 'Ескі құпиясөз',
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setStateDialog(() => obscureOld = !obscureOld),
+                          icon: Icon(
+                            obscureOld
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: newPassController,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: 'Жаңа құпиясөз',
+                        suffixIcon: IconButton(
+                          onPressed: () =>
+                              setStateDialog(() => obscureNew = !obscureNew),
+                          icon: Icon(
+                            obscureNew
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: isSaving
+                            ? null
+                            : () {
+                                // 1️⃣ Закрываем диалог ЧЕРЕЗ rootNavigator
+                                Navigator.of(
+                                  dialogContext,
+                                  rootNavigator: true,
+                                ).pop();
+
+                                // 2️⃣ Навигацию делаем ПОСЛЕ кадра
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (!mounted) return;
+
+                                  Navigator.of(parentContext).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ResetPasswordEmailScreen(),
+                                    ),
+                                  );
+                                });
+                              },
+                        child: const Text(
+                          'Құпиясөзді ұмыттыңыз ба?',
+                          style: TextStyle(fontFamily: 'Montserrat'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Жабу'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => doSave(setStateDialog, dialogContext),
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Сақтау'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
@@ -275,13 +505,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Icon(Icons.person, size: 60 * scaleW, color: Colors.white),
             ),
             SizedBox(height: 25 * scaleH),
+
             _buildEditableField(
               label: "Аты-жөніңіз",
               controller: _nameController,
               isEditing: _isEditingName,
-              onEditPressed: () {
-                setState(() => _isEditingName = !_isEditingName);
-              },
+              onEditPressed: () =>
+                  setState(() => _isEditingName = !_isEditingName),
               scaleW: scaleW,
               scaleH: scaleH,
             ),
@@ -289,28 +519,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label: "Электрондық пошта",
               controller: _emailController,
               isEditing: _isEditingEmail,
-              onEditPressed: () {
-                setState(() => _isEditingEmail = !_isEditingEmail);
-              },
+              onEditPressed: () =>
+                  setState(() => _isEditingEmail = !_isEditingEmail),
               scaleW: scaleW,
               scaleH: scaleH,
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: 15 * scaleH),
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.lock),
-                label: const Text("Құпиясөзді өзгерту"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF20409A),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100 * scaleW),
-                  ),
-                ),
-                onPressed: _showChangePasswordDialog,
-              ),
-            ),
-            SizedBox(height: 20 * scaleH),
+
+            // ✅ Вместо старой кнопки — “поле-кнопка”
+            _buildPasswordRow(scaleW: scaleW, scaleH: scaleH),
+
+            SizedBox(height: 10 * scaleH),
+
             SizedBox(
               width: 250 * scaleW,
               height: 55 * scaleH,
@@ -332,6 +551,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+
+            SizedBox(height: 15 * scaleH),
+
+            SizedBox(
+              width: 250 * scaleW,
+              height: 55 * scaleH,
+              child: ElevatedButton(
+                onPressed: _logout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade300,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100 * scaleW),
+                  ),
+                ),
+                child: Text(
+                  "Шығу",
+                  style: TextStyle(
+                    fontSize: 20 * scaleW,
+                    fontFamily: 'Montserrat',
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
             SizedBox(height: 50 * scaleH),
           ],
         ),
@@ -348,7 +591,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: _onItemTapped,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(icon: Icon(Icons.calculate), label: "Калькулятор"),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calculate),
+              label: "Калькулятор",
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
           ],

@@ -1,46 +1,67 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'reset_password_code_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ResetPasswordEmailScreen extends StatefulWidget {
   const ResetPasswordEmailScreen({super.key});
 
   @override
-  State<ResetPasswordEmailScreen> createState() => _ResetPasswordEmailScreenState();
+  State<ResetPasswordEmailScreen> createState() =>
+      _ResetPasswordEmailScreenState();
 }
 
 class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
   final TextEditingController emailController = TextEditingController();
   bool isLoading = false;
 
-  Future<void> sendResetCode() async {
-    setState(() => isLoading = true);
-    final url = Uri.parse('http://10.0.2.2:3001/forgot-password');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': emailController.text.trim()}),
-    );
+  @override
+  void dispose() {
+    emailController.dispose();
+    super.dispose();
+  }
 
-    setState(() => isLoading = false);
+  Future<void> sendResetLink() async {
+    if (isLoading) return; // ✅ анти-даблклик
 
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? 'Код жіберілді')),
-      );
-      Navigator.push(
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(
         context,
-        MaterialPageRoute(
-          builder: (context) => ResetPasswordCodeScreen(email: emailController.text.trim()),
+      ).showSnackBar(const SnackBar(content: Text('Email енгізіңіз')));
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'io.supabase.flutter://reset-password',
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Сілтеме email-ге жіберілді. Поштаны тексеріңіз.'),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message'] ?? 'Қате орын алды')),
-      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+
+      // ✅ Supabase часто возвращает 429 как AuthException
+      final msg =
+          e.message.toLowerCase().contains('too many') ||
+              e.message.contains('429')
+          ? 'Тым көп сұраныс 😅 Біраз күтіңіз де қайта көріңіз.'
+          : e.message;
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -48,7 +69,7 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-        appBar: AppBar(
+      appBar: AppBar(
         title: const Text('Құпиясөзді қалпына келтіру'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -57,11 +78,13 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('Электрондық поштаңызды енгізіңіз'),
             const SizedBox(height: 12),
             TextField(
               controller: emailController,
+              keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 hintText: 'Email',
                 border: OutlineInputBorder(),
@@ -69,10 +92,22 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: isLoading ? null : sendResetCode,
+              onPressed: isLoading
+                  ? null
+                  : () {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      Future.delayed(const Duration(milliseconds: 50), () {
+                        if (!mounted) return;
+                        sendResetLink();
+                      });
+                    },
               child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Код жіберу'),
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Сілтеме жіберу'),
             ),
           ],
         ),
