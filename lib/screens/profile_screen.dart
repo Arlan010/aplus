@@ -5,7 +5,6 @@ import 'home_screen.dart';
 import 'calculator_screen.dart';
 import 'grades_diary_screen.dart';
 
-// ✅ Поменяй на свой экран “Забыли пароль / Reset password”
 import 'reset_password_email_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -104,7 +103,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     await supabase.auth.signOut();
     if (!mounted) return;
-    // ✅ возвращаемся к корню (AuthGate покажет WelcomeScreen)
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -133,10 +131,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         break;
     }
   }
-
-  // =========================
-  // UI helpers
-  // =========================
 
   Widget _buildEditableField({
     required String label,
@@ -207,7 +201,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ✅ Новая “строка” как поле, но внутри кнопка
   Widget _buildPasswordRow({required double scaleW, required double scaleH}) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 10 * scaleH),
@@ -261,15 +254,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // =========================
-  // Change Password Dialog
-  // =========================
-
   Future<void> _showChangePasswordDialog({
     required double scaleW,
     required double scaleH,
   }) async {
-    final parentContext = context; // ✅ контекст экрана (живой)
+    final parentContext = context;
 
     final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
@@ -321,12 +310,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (!mounted) return;
 
-        // ✅ закрываем диалог
         if (dialogContext.mounted) {
           Navigator.of(dialogContext, rootNavigator: true).pop();
         }
 
-        // ✅ snackbar после кадра (безопасно)
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           ScaffoldMessenger.of(parentContext).showSnackBar(
@@ -344,7 +331,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           parentContext,
         ).showSnackBar(SnackBar(content: Text('Қате: $e')));
       } finally {
-        // ✅ ВАЖНО: НЕ трогаем setStateDialog если диалог уже закрыт
         if (dialogContext.mounted) {
           setStateDialog(() => isSaving = false);
         }
@@ -410,13 +396,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onPressed: isSaving
                             ? null
                             : () {
-                                // 1️⃣ Закрываем диалог ЧЕРЕЗ rootNavigator
                                 Navigator.of(
                                   dialogContext,
                                   rootNavigator: true,
                                 ).pop();
 
-                                // 2️⃣ Навигацию делаем ПОСЛЕ кадра
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
@@ -525,7 +509,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               scaleH: scaleH,
             ),
 
-            // ✅ Вместо старой кнопки — “поле-кнопка”
             _buildPasswordRow(scaleW: scaleW, scaleH: scaleH),
 
             SizedBox(height: 10 * scaleH),

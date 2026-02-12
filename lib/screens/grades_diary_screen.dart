@@ -19,7 +19,6 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
   String gradingSystem = "100";
   bool isLoading = true;
 
-  // subjectName -> { id, grades: [ {id,date,percent,type} ] }
   Map<String, Map<String, dynamic>> subjects = {};
 
   @override
@@ -71,7 +70,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
         if (entry.key.isNotEmpty) {
           (entry.value['grades'] as List<Map<String, dynamic>>).add({
             'id': g['id'],
-            'date': g['date'].toString(), // YYYY-MM-DD
+            'date': g['date'].toString(),
             'percent': (g['percent'] as num).toDouble(),
             'type': (g['type'] ?? 'regular').toString(),
           });
@@ -103,7 +102,6 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
 
   String _toDisplayGrade(double percent) {
     if (gradingSystem == '5') {
-      // грубое отображение (можешь поменять)
       if (percent >= 90) return '5';
       if (percent >= 75) return '4';
       if (percent >= 60) return '3';
@@ -256,7 +254,6 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                   final intV = v.round();
                   if (intV < 2 || intV > 5)
                     throw Exception('5 балл жүйеде 2-5 аралығы');
-                  // маппинг (можешь поменять)
                   percent = intV == 5
                       ? 95
                       : intV == 4
@@ -273,7 +270,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 await supabase.from('grades').insert({
                   'user_id': user.id,
                   'subject_id': subjectId,
-                  'date': dateText, // YYYY-MM-DD
+                  'date': dateText,
                   'percent': percent,
                   'type': selectedType,
                 });

@@ -84,7 +84,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final user = res.user;
       if (user == null) {
-        // если включено подтверждение email
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -96,7 +95,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // profiles: id = user.id
       await supabase.from('profiles').insert({
         'id': user.id,
         'full_name': fullName,

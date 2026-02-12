@@ -20,7 +20,7 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
   }
 
   Future<void> sendResetLink() async {
-    if (isLoading) return; // ✅ анти-даблклик
+    if (isLoading) return;
 
     final email = emailController.text.trim();
     if (email.isEmpty) {
@@ -47,7 +47,6 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
     } on AuthException catch (e) {
       if (!mounted) return;
 
-      // ✅ Supabase часто возвращает 429 как AuthException
       final msg =
           e.message.toLowerCase().contains('too many') ||
               e.message.contains('429')

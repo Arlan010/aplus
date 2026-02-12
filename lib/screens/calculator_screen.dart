@@ -23,7 +23,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   double gpa100 = 0;
   double gpa4 = 0;
 
-  // [{subject, subject_id, grades:[{date, grade(percent)}]}]
   List<Map<String, dynamic>> subjects = [];
 
   final TextEditingController desiredGradeController = TextEditingController();
