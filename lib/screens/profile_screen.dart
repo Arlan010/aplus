@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'home_screen.dart';
-import 'calculator_screen.dart';
-import 'grades_diary_screen.dart';
-
 import 'reset_password_email_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,8 +12,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final supabase = Supabase.instance.client;
-
-  int _selectedIndex = 3;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -103,33 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     await supabase.auth.signOut();
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
-        );
-        break;
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const GradesDiaryScreen()),
-        );
-        break;
-      case 3:
-        break;
-    }
+    // AuthGate/Welcome экран должен отреагировать на signOut сам
   }
 
   Widget _buildEditableField({
@@ -300,9 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      if (dialogContext.mounted) {
-        setStateDialog(() => isSaving = true);
-      }
+      if (dialogContext.mounted) setStateDialog(() => isSaving = true);
 
       try {
         await supabase.auth.signInWithPassword(email: email, password: oldPass);
@@ -331,9 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           parentContext,
         ).showSnackBar(SnackBar(content: Text('Қате: $e')));
       } finally {
-        if (dialogContext.mounted) {
-          setStateDialog(() => isSaving = false);
-        }
+        if (dialogContext.mounted) setStateDialog(() => isSaving = false);
       }
     }
 
@@ -389,7 +353,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
@@ -400,12 +363,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   dialogContext,
                                   rootNavigator: true,
                                 ).pop();
-
                                 WidgetsBinding.instance.addPostFrameCallback((
                                   _,
                                 ) {
                                   if (!mounted) return;
-
                                   Navigator.of(parentContext).push(
                                     MaterialPageRoute(
                                       builder: (_) =>
@@ -489,7 +450,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Icon(Icons.person, size: 60 * scaleW, color: Colors.white),
             ),
             SizedBox(height: 25 * scaleH),
-
             _buildEditableField(
               label: "Аты-жөніңіз",
               controller: _nameController,
@@ -508,11 +468,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               scaleW: scaleW,
               scaleH: scaleH,
             ),
-
             _buildPasswordRow(scaleW: scaleW, scaleH: scaleH),
-
             SizedBox(height: 10 * scaleH),
-
             SizedBox(
               width: 250 * scaleW,
               height: 55 * scaleH,
@@ -534,9 +491,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-
             SizedBox(height: 15 * scaleH),
-
             SizedBox(
               width: 250 * scaleW,
               height: 55 * scaleH,
@@ -559,27 +514,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SizedBox(height: 50 * scaleH),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SizedBox(
-        height: 105 * scaleH,
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFFF8F9FE),
-          currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF006FFD),
-          unselectedItemColor: Colors.grey,
-          iconSize: 30 * scaleW,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calculate),
-              label: "Калькулятор",
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
           ],
         ),
       ),

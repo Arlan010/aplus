@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'home_screen.dart';
-import 'calculator_screen.dart';
-import 'profile_screen.dart';
-
 class GradesDiaryScreen extends StatefulWidget {
   const GradesDiaryScreen({super.key});
 
@@ -15,7 +11,6 @@ class GradesDiaryScreen extends StatefulWidget {
 class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
   final supabase = Supabase.instance.client;
 
-  int _selectedIndex = 2;
   String gradingSystem = "100";
   bool isLoading = true;
 
@@ -515,32 +510,6 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     );
   }
 
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
-        );
-        break;
-      case 2:
-        break;
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenW = MediaQuery.of(context).size.width;
@@ -597,27 +566,6 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: SizedBox(
-        height: 105 * scaleH,
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFFF8F9FE),
-          currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF006FFD),
-          unselectedItemColor: Colors.grey,
-          iconSize: 30 * scaleW,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calculate),
-              label: "Калькулятор",
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
-          ],
-        ),
-      ),
     );
   }
 }

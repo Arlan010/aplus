@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'grades_diary_screen.dart';
-import 'home_screen.dart';
-import 'profile_screen.dart';
 
 class CalculatorScreen extends StatefulWidget {
   final int initialTab;
@@ -16,7 +14,6 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final supabase = Supabase.instance.client;
 
-  int _selectedIndex = 1;
   int _currentTab = 0;
 
   bool isLoading = true;
@@ -122,32 +119,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {
       calculatedExamGrade = required.toStringAsFixed(2);
     });
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        break;
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const GradesDiaryScreen()),
-        );
-        break;
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-        break;
-    }
   }
 
   Widget _buildSwitchButton({
@@ -435,27 +406,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ? _buildGpaCalculator(scaleW, scaleH)
                 : _buildExamCalculator(scaleW, scaleH),
           ),
-        ),
-      ),
-      bottomNavigationBar: SizedBox(
-        height: 105 * scaleH,
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFFF8F9FE),
-          currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF006FFD),
-          unselectedItemColor: Colors.grey,
-          iconSize: 30 * scaleW,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calculate),
-              label: "Калькулятор",
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
-          ],
         ),
       ),
     );

@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'calculator_screen.dart';
 import 'grades_diary_screen.dart';
-import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,8 +13,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final supabase = Supabase.instance.client;
-
-  int _selectedIndex = 0;
 
   String username = "Пайдаланушы";
   double gpa4 = 0.0;
@@ -62,33 +59,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Қате: $e")));
-    }
-  }
-
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
-
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const CalculatorScreen()),
-        );
-        break;
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const GradesDiaryScreen()),
-        );
-        break;
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProfileScreen()),
-        );
-        break;
     }
   }
 
@@ -245,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Баға қосу",
                       icon: Icons.add,
-                      onPressed: () => Navigator.pushReplacement(
+                      onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const GradesDiaryScreen(),
@@ -279,27 +249,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-      ),
-      bottomNavigationBar: SizedBox(
-        height: 105 * scaleH,
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFFF8F9FE),
-          currentIndex: _selectedIndex,
-          selectedItemColor: const Color(0xFF006FFD),
-          unselectedItemColor: Colors.grey,
-          iconSize: 30 * scaleW,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calculate),
-              label: "Калькулятор",
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
-          ],
-        ),
       ),
     );
   }

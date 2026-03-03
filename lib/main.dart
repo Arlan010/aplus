@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/welcome_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/root_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +45,7 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return session == null ? const WelcomeScreen() : const HomeScreen();
+        return session == null ? const WelcomeScreen() : const RootScreen();
       },
     );
   }
