@@ -1,8 +1,10 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'login_screen.dart';
-import 'home_screen.dart';
+import 'root_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -105,9 +107,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Тіркелу сәтті өтті')));
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const RootScreen()),
+        (route) => false,
       );
     } on AuthException catch (e) {
       _showErrorDialog(e.message);
@@ -252,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: 327 * scaleW,
                 height: 48 * scaleH,
                 child: DropdownButtonFormField<String>(
-                  value: selectedSystem,
+                  initialValue: selectedSystem,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12 * scaleW),

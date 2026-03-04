@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'register_screen.dart';
-import 'home_screen.dart';
+import 'root_screen.dart';
 import 'reset_password_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -42,9 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Кіру сәтті өтті!')));
 
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const RootScreen()),
+        (route) => false,
       );
     } on AuthException catch (e) {
       ScaffoldMessenger.of(

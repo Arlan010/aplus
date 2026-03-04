@@ -227,6 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required double scaleH,
   }) async {
     final parentContext = context;
+    final parentMessenger = ScaffoldMessenger.of(parentContext);
 
     final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
@@ -253,14 +254,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       if (oldPass.isEmpty || newPass.isEmpty) {
-        ScaffoldMessenger.of(parentContext).showSnackBar(
+        parentMessenger.showSnackBar(
           const SnackBar(content: Text('Барлық өрістерді толтырыңыз')),
         );
         return;
       }
 
       if (newPass.length < 6) {
-        ScaffoldMessenger.of(parentContext).showSnackBar(
+        parentMessenger.showSnackBar(
           const SnackBar(
             content: Text('Жаңа құпиясөз кемінде 6 таңба болуы керек'),
           ),
@@ -282,20 +283,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          ScaffoldMessenger.of(parentContext).showSnackBar(
+          parentMessenger.showSnackBar(
             const SnackBar(content: Text('Құпиясөз сәтті өзгертілді ✅')),
           );
         });
       } on AuthException catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          parentContext,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        parentMessenger.showSnackBar(SnackBar(content: Text(e.message)));
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          parentContext,
-        ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+        parentMessenger.showSnackBar(SnackBar(content: Text('Қате: $e')));
       } finally {
         if (dialogContext.mounted) setStateDialog(() => isSaving = false);
       }

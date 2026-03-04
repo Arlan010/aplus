@@ -1,16 +1,19 @@
-# project050925
+# Aplus
 
-A new Flutter project.
+Flutter + Supabase application for students and school pupils.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- registration, login, profile editing, password reset
+- grade diary by subject
+- GPA calculation based on saved grades
+- required exam score calculation for a target average
+- support for `100` and `5` point grade views
 
-A few resources to get you started if this is your first Flutter project:
+## Data Model
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- `profiles`: user profile and preferred grade view
+- `subjects`: user subjects
+- `grades`: grades linked to a user and subject
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The SQL schema for Supabase is stored in [supabase/schema.sql](/c:/Users/danat/github_projects/aplus/supabase/schema.sql).

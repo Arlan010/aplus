@@ -202,7 +202,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
                 SizedBox(height: 25 * scaleH),
                 TextButton(
                   onPressed: () => Navigator.pushReplacement(
@@ -283,7 +283,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   width: 327 * scaleW,
                   height: 48 * scaleH,
                   child: DropdownButtonFormField<String>(
-                    value: selectedSubject.isNotEmpty ? selectedSubject : null,
+                    initialValue: selectedSubject.isNotEmpty
+                        ? selectedSubject
+                        : null,
                     decoration: InputDecoration(
                       labelText: "Пән",
                       border: OutlineInputBorder(

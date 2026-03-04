@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'calculator_screen.dart';
-import 'grades_diary_screen.dart';
-
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final void Function(int index) onTabChange;
+
+  const HomeScreen({super.key, required this.onTabChange});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -215,12 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Баға қосу",
                       icon: Icons.add,
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const GradesDiaryScreen(),
-                        ),
-                      ),
+                      onPressed: () => widget.onTabChange(2),
                       scaleW: scaleW,
                       scaleH: scaleH,
                     ),
@@ -228,12 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMainButton(
                       text: "Емтиханда алу\nкерек бағаны\nесептеу",
                       icon: Icons.calculate,
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CalculatorScreen(initialTab: 1),
-                        ),
-                      ),
+                      onPressed: () => widget.onTabChange(1),
                       scaleW: scaleW,
                       scaleH: scaleH,
                     ),

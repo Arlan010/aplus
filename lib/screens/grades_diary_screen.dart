@@ -107,6 +107,8 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
 
   Future<void> _addSubjectDialog(double scaleW, double scaleH) async {
     final controller = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
     showDialog(
       context: context,
@@ -136,16 +138,12 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 });
 
                 if (!mounted) return;
-                Navigator.pop(context);
+                navigator.pop();
                 await _fetchUserAndGrades();
               } on PostgrestException catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(e.message)));
+                messenger.showSnackBar(SnackBar(content: Text(e.message)));
               } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+                messenger.showSnackBar(SnackBar(content: Text('Қате: $e')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -192,6 +190,8 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
   Future<void> _addGrade(String subjectName) async {
     final dateController = TextEditingController();
     final gradeController = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     String selectedType = "regular";
     final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
 
@@ -206,7 +206,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: selectedType,
+              initialValue: selectedType,
               items: types
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
@@ -238,8 +238,9 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 if (user == null) return;
 
                 final dateText = dateController.text.trim();
-                if (dateText.isEmpty)
+                if (dateText.isEmpty) {
                   throw Exception('Күнді енгізіңіз (YYYY-MM-DD)');
+                }
 
                 final v = double.tryParse(gradeController.text.trim());
                 if (v == null) throw Exception('Баға дұрыс емес');
@@ -247,8 +248,9 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 double percent;
                 if (gradingSystem == '5') {
                   final intV = v.round();
-                  if (intV < 2 || intV > 5)
+                  if (intV < 2 || intV > 5) {
                     throw Exception('5 балл жүйеде 2-5 аралығы');
+                  }
                   percent = intV == 5
                       ? 95
                       : intV == 4
@@ -257,8 +259,9 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                       ? 65
                       : 50;
                 } else {
-                  if (v < 0 || v > 100)
+                  if (v < 0 || v > 100) {
                     throw Exception('100 балл жүйеде 0-100 аралығы');
+                  }
                   percent = v;
                 }
 
@@ -271,12 +274,10 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 });
 
                 if (!mounted) return;
-                Navigator.pop(context);
+                navigator.pop();
                 await _fetchUserAndGrades();
               } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+                messenger.showSnackBar(SnackBar(content: Text('Қате: $e')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -293,6 +294,8 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     String subjectName,
     Map<String, dynamic> g,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     final gradeController = TextEditingController(
       text: _toDisplayGrade(g['percent'] as double),
     );
@@ -310,7 +313,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             DropdownButtonFormField<String>(
-              value: selectedType,
+              initialValue: selectedType,
               items: types
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
@@ -341,8 +344,9 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 double percent;
                 if (gradingSystem == '5') {
                   final intV = v.round();
-                  if (intV < 2 || intV > 5)
+                  if (intV < 2 || intV > 5) {
                     throw Exception('5 балл жүйеде 2-5 аралығы');
+                  }
                   percent = intV == 5
                       ? 95
                       : intV == 4
@@ -351,7 +355,9 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                       ? 65
                       : 50;
                 } else {
-                  if (v < 0 || v > 100) throw Exception('0-100 аралығы');
+                  if (v < 0 || v > 100) {
+                    throw Exception('0-100 аралығы');
+                  }
                   percent = v;
                 }
 
@@ -365,12 +371,10 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                     .eq('id', gradeId);
 
                 if (!mounted) return;
-                Navigator.pop(context);
+                navigator.pop();
                 await _fetchUserAndGrades();
               } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Қате: $e')));
+                messenger.showSnackBar(SnackBar(content: Text('Қате: $e')));
               }
             },
             child: const Text("Өзгерту"),
@@ -379,7 +383,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
             onPressed: () async {
               await supabase.from('grades').delete().eq('id', gradeId);
               if (!mounted) return;
-              Navigator.pop(context);
+              navigator.pop();
               await _fetchUserAndGrades();
             },
             child: const Text("Жою", style: TextStyle(color: Colors.red)),

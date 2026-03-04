@@ -15,11 +15,13 @@ class RootScreen extends StatefulWidget {
 class _RootScreenState extends State<RootScreen> {
   int _index = 0;
 
-  final _pages = const [
-    HomeScreen(),
-    CalculatorScreen(),
-    GradesDiaryScreen(),
-    ProfileScreen(),
+  void _setTab(int i) => setState(() => _index = i);
+
+  late final List<Widget> _pages = [
+    HomeScreen(onTabChange: _setTab),
+    const CalculatorScreen(),
+    const GradesDiaryScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -27,12 +29,12 @@ class _RootScreenState extends State<RootScreen> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
         type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFFF8F9FE),
-        currentIndex: _index,
         selectedItemColor: const Color(0xFF006FFD),
         unselectedItemColor: Colors.grey,
-        onTap: (i) => setState(() => _index = i),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
           BottomNavigationBarItem(
