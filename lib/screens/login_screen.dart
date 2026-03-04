@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'register_screen.dart';
-import 'root_screen.dart';
 import 'reset_password_email_screen.dart';
+import 'root_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,13 +22,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passController = TextEditingController();
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    passController.dispose();
+    super.dispose();
+  }
+
   Future<void> loginUser() async {
     final email = emailController.text.trim();
     final password = passController.text;
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email және құпиясөзді енгізіңіз')),
+        const SnackBar(content: Text('Email мен құпиясөзді енгізіңіз')),
       );
       return;
     }
@@ -40,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Кіру сәтті өтті!')));
+      ).showSnackBar(const SnackBar(content: Text('Кіру сәтті өтті')));
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -135,7 +142,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 40),
-
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -163,9 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -201,9 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 15),
-
             TextButton(
               onPressed: () {
                 Navigator.push(
@@ -223,9 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             SizedBox(
               width: double.infinity,
               height: 55,

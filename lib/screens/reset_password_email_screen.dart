@@ -41,7 +41,7 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Сілтеме email-ге жіберілді. Поштаны тексеріңіз.'),
+          content: Text('Сілтеме email-ге жіберілді. Поштаңызды тексеріңіз.'),
         ),
       );
     } on AuthException catch (e) {
@@ -50,7 +50,7 @@ class _ResetPasswordEmailScreenState extends State<ResetPasswordEmailScreen> {
       final msg =
           e.message.toLowerCase().contains('too many') ||
               e.message.contains('429')
-          ? 'Тым көп сұраныс 😅 Біраз күтіңіз де қайта көріңіз.'
+          ? 'Сұраным тым көп. Біраз күтіп, қайта көріңіз.'
           : e.message;
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));

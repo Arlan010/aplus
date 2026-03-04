@@ -32,7 +32,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               SizedBox(height: 10 * scaleH),
               Text(
-                'Aplus \nҚосымшасына \nҚош келдіңіз!',
+                'Aplus\nқосымшасына\nқош келдіңіз!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 30 * scaleW,

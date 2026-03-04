@@ -13,7 +13,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final supabase = Supabase.instance.client;
 
-  String username = "Пайдаланушы";
+  String username = 'Пайдаланушы';
   double gpa4 = 0.0;
   bool isLoading = true;
 
@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Қате: $e")));
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
     }
   }
 
@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Бағалар табылмады")));
+        ).showSnackBar(const SnackBar(content: Text('Бағалар табылмады')));
         return;
       }
 
@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Соңғы баға: ${percent.toStringAsFixed(2)}% ($subjectName) — $date",
+            'Соңғы баға: ${percent.toStringAsFixed(2)}% ($subjectName), $date',
           ),
         ),
       );
@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Қате: $e")));
+      ).showSnackBar(SnackBar(content: Text('Қате: $e')));
     }
   }
 
@@ -182,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          "Сәлем, $username!",
+                          'Сәлем, $username!',
                           style: TextStyle(
                             fontSize: 20 * scaleW,
                             fontWeight: FontWeight.w500,
@@ -191,7 +191,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         SizedBox(width: 10 * scaleW),
                         Text(
-                          "Қазіргі GPA: ${gpa4.toStringAsFixed(2)}",
+                          'Қазіргі GPA: ${gpa4.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 20 * scaleW,
                             fontWeight: FontWeight.w500,
@@ -212,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildMainButton(
-                      text: "Баға қосу",
+                      text: 'Баға қосу',
                       icon: Icons.add,
                       onPressed: () => widget.onTabChange(2),
                       scaleW: scaleW,
@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 25 * scaleH),
                     _buildMainButton(
-                      text: "Емтиханда алу\nкерек бағаны\nесептеу",
+                      text: 'Емтиханда алу\nкерек бағаны\nесептеу',
                       icon: Icons.calculate,
                       onPressed: () => widget.onTabChange(1),
                       scaleW: scaleW,
@@ -228,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 25 * scaleH),
                     _buildMainButton(
-                      text: "Соңғы алынған\nбаға",
+                      text: 'Соңғы алынған\nбаға',
                       icon: Icons.grade,
                       onPressed: _showLastGradeSnack,
                       scaleW: scaleW,

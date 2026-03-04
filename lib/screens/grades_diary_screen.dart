@@ -11,7 +11,7 @@ class GradesDiaryScreen extends StatefulWidget {
 class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
   final supabase = Supabase.instance.client;
 
-  String gradingSystem = "100";
+  String gradingSystem = '100';
   bool isLoading = true;
 
   Map<String, Map<String, dynamic>> subjects = {};
@@ -113,15 +113,15 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Жаңа пән қосу"),
+        title: const Text('Жаңа пән қосу'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: "Пән атауы"),
+          decoration: const InputDecoration(hintText: 'Пән атауы'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Болдырмау"),
+            child: const Text('Болдырмау'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -152,7 +152,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 borderRadius: BorderRadius.circular(8 * scaleW),
               ),
             ),
-            child: const Text("Қосу", style: TextStyle(color: Colors.black)),
+            child: const Text('Қосу', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -166,16 +166,16 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Пәнді жою"),
-        content: Text("Сенімдісің бе \"$subjectName\" пәнін жойғың келеді ме?"),
+        title: const Text('Пәнді жою'),
+        content: Text('"$subjectName" пәнін шынымен жойғыңыз келе ме?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Жоқ"),
+            child: const Text('Жоқ'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Иә"),
+            child: const Text('Иә'),
           ),
         ],
       ),
@@ -192,8 +192,8 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     final gradeController = TextEditingController();
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    String selectedType = "regular";
-    final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
+    String selectedType = 'regular';
+    final types = ['regular', 'СОР', 'СОЧ', 'Рубежка', 'Сессия'];
 
     final subjectId = subjects[subjectName]?['id'];
     if (subjectId == null) return;
@@ -201,7 +201,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text("$subjectName пәніне баға қосу"),
+        title: Text('$subjectName пәніне баға қосу'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -210,18 +210,18 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
               items: types
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
-              onChanged: (val) => selectedType = val ?? "regular",
-              decoration: const InputDecoration(labelText: "Баға түрі"),
+              onChanged: (val) => selectedType = val ?? 'regular',
+              decoration: const InputDecoration(labelText: 'Баға түрі'),
             ),
             TextField(
               controller: dateController,
-              decoration: const InputDecoration(labelText: "Күні (YYYY-MM-DD)"),
+              decoration: const InputDecoration(labelText: 'Күні (YYYY-MM-DD)'),
             ),
             TextField(
               controller: gradeController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: gradingSystem == "5" ? "Баға (2-5)" : "Баға (0-100)",
+                labelText: gradingSystem == '5' ? 'Баға (2-5)' : 'Баға (0-100)',
               ),
             ),
           ],
@@ -229,7 +229,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Болдырмау"),
+            child: const Text('Болдырмау'),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -249,7 +249,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 if (gradingSystem == '5') {
                   final intV = v.round();
                   if (intV < 2 || intV > 5) {
-                    throw Exception('5 балл жүйеде 2-5 аралығы');
+                    throw Exception('5 балдық жүйеде 2-5 аралығы');
                   }
                   percent = intV == 5
                       ? 95
@@ -260,7 +260,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                       : 50;
                 } else {
                   if (v < 0 || v > 100) {
-                    throw Exception('100 балл жүйеде 0-100 аралығы');
+                    throw Exception('100 балдық жүйеде 0-100 аралығы');
                   }
                   percent = v;
                 }
@@ -283,7 +283,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2DDBD2),
             ),
-            child: const Text("Қосу", style: TextStyle(color: Colors.black)),
+            child: const Text('Қосу', style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
@@ -301,14 +301,14 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
     );
     final dateController = TextEditingController(text: g['date'].toString());
     String selectedType = (g['type'] ?? 'regular').toString();
-    final types = ["regular", "СОР", "СОЧ", "Рубежка", "Сессия"];
+    final types = ['regular', 'СОР', 'СОЧ', 'Рубежка', 'Сессия'];
 
     final gradeId = g['id'];
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Бағаны өзгерту немесе жою"),
+        title: const Text('Бағаны өзгерту немесе жою'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -317,17 +317,17 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
               items: types
                   .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                   .toList(),
-              onChanged: (val) => selectedType = val ?? "regular",
-              decoration: const InputDecoration(labelText: "Баға түрі"),
+              onChanged: (val) => selectedType = val ?? 'regular',
+              decoration: const InputDecoration(labelText: 'Баға түрі'),
             ),
             TextField(
               controller: dateController,
-              decoration: const InputDecoration(labelText: "Күні (YYYY-MM-DD)"),
+              decoration: const InputDecoration(labelText: 'Күні (YYYY-MM-DD)'),
             ),
             TextField(
               controller: gradeController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Баға"),
+              decoration: const InputDecoration(labelText: 'Баға'),
             ),
           ],
         ),
@@ -345,7 +345,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 if (gradingSystem == '5') {
                   final intV = v.round();
                   if (intV < 2 || intV > 5) {
-                    throw Exception('5 балл жүйеде 2-5 аралығы');
+                    throw Exception('5 балдық жүйеде 2-5 аралығы');
                   }
                   percent = intV == 5
                       ? 95
@@ -377,7 +377,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                 messenger.showSnackBar(SnackBar(content: Text('Қате: $e')));
               }
             },
-            child: const Text("Өзгерту"),
+            child: const Text('Өзгерту'),
           ),
           TextButton(
             onPressed: () async {
@@ -386,7 +386,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
               navigator.pop();
               await _fetchUserAndGrades();
             },
-            child: const Text("Жою", style: TextStyle(color: Colors.red)),
+            child: const Text('Жою', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -457,12 +457,12 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                     SizedBox(
                       width: 80,
                       height: 35,
-                      child: Center(child: Text("Дата")),
+                      child: Center(child: Text('Дата')),
                     ),
                     SizedBox(
                       width: 80,
                       height: 35,
-                      child: Center(child: Text("Баға")),
+                      child: Center(child: Text('Баға')),
                     ),
                   ],
                 ),
@@ -473,7 +473,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                         SizedBox(
                           width: 90 * scaleW,
                           height: 35 * scaleH,
-                          child: Center(child: Text(entry["date"].toString())),
+                          child: Center(child: Text(entry['date'].toString())),
                         ),
                         SizedBox(
                           width: 90 * scaleW,
@@ -482,7 +482,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                             child: GestureDetector(
                               onTap: () => _editOrDeleteGrade(name, entry),
                               child: Text(
-                                _toDisplayGrade(entry["percent"] as double),
+                                _toDisplayGrade(entry['percent'] as double),
                                 style: const TextStyle(
                                   color: Colors.blueAccent,
                                   decoration: TextDecoration.underline,
@@ -501,7 +501,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
           Padding(
             padding: EdgeInsets.only(top: 8 * scaleH),
             child: Text(
-              "Орташа баға: ${_avg(gs).toStringAsFixed(2)}%",
+              'Орташа баға: ${_avg(gs).toStringAsFixed(2)}%',
               style: TextStyle(
                 fontSize: 16 * scaleW,
                 fontWeight: FontWeight.w600,
@@ -535,7 +535,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
           title: Padding(
             padding: EdgeInsets.only(top: 40 * scaleH),
             child: Text(
-              "Баға жүйесі: $gradingSystem",
+              'Баға жүйесі: $gradingSystem',
               style: TextStyle(
                 color: Colors.black,
                 fontFamily: 'Montserrat',
@@ -559,7 +559,7 @@ class _GradesDiaryScreenState extends State<GradesDiaryScreen> {
                   TextButton(
                     onPressed: () => _addSubjectDialog(scaleW, scaleH),
                     child: Text(
-                      "+ Пән қосу",
+                      '+ Пән қосу',
                       style: TextStyle(
                         fontSize: 18 * scaleW,
                         color: const Color(0xFF2DDBD2),

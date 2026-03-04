@@ -27,6 +27,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String selectedSystem = '100';
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    passController.dispose();
+    confirmPassController.dispose();
+    super.dispose();
+  }
+
   String? validatePassword(String password) {
     if (password.length < 8) return 'Құпиясөз кемінде 8 таңбадан тұруы керек';
     if (!RegExp(r'[A-Z]').hasMatch(password))
@@ -82,28 +91,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
     try {
-      final res = await supabase.auth.signUp(email: email, password: password);
+      final res = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': fullName,
+          'grading_view': selectedSystem,
+        },
+      );
 
       final user = res.user;
       if (user == null) {
-        if (!mounted) return;
+        throw Exception('Тіркелу аяқталмады. Қайталап көріңіз.');
+      }
+
+      if (res.session != null) {
+        await supabase.from('profiles').upsert({
+          'id': user.id,
+          'full_name': fullName,
+          'grading_view': selectedSystem,
+        });
+      }
+
+      if (!mounted) return;
+
+      if (res.session == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Поштаға растау хаты жіберілді. Email-ді тексеріңіз.',
+              'Растау хаты email-ге жіберілді. Аккаунтты белсендіру үшін поштаңызды тексеріңіз.',
             ),
           ),
+        );
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
         );
         return;
       }
 
-      await supabase.from('profiles').insert({
-        'id': user.id,
-        'full_name': fullName,
-        'grading_view': selectedSystem,
-      });
-
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Тіркелу сәтті өтті')));
@@ -141,7 +168,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(height: 60 * scaleH),
-
               Container(
                 width: 327 * scaleW,
                 height: 60 * scaleH,
@@ -200,15 +226,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
               ),
-
               SizedBox(height: 40 * scaleH),
-
               _buildLabel('Аты-жөніңіз', scaleW),
               SizedBox(height: 6 * scaleH),
               _buildTextField(nameController, 'Аты-жөніңіз', scaleW, scaleH),
-
               SizedBox(height: 20 * scaleH),
-
               _buildLabel('Электрондық пошта', scaleW),
               SizedBox(height: 6 * scaleH),
               _buildTextField(
@@ -217,9 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 scaleW,
                 scaleH,
               ),
-
               SizedBox(height: 20 * scaleH),
-
               _buildLabel('Құпиясөз', scaleW),
               SizedBox(height: 6 * scaleH),
               _buildPasswordField(
@@ -231,9 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 scaleW: scaleW,
                 scaleH: scaleH,
               ),
-
               SizedBox(height: 20 * scaleH),
-
               _buildLabel('Құпиясөзді растау', scaleW),
               SizedBox(height: 6 * scaleH),
               _buildPasswordField(
@@ -246,9 +264,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 scaleW: scaleW,
                 scaleH: scaleH,
               ),
-
               SizedBox(height: 20 * scaleH),
-
               _buildLabel('Баға жүйесі', scaleW),
               SizedBox(height: 6 * scaleH),
               SizedBox(
@@ -269,7 +285,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     DropdownMenuItem(
                       value: '100',
                       child: Text(
-                        '100 баллдық жүйе',
+                        '100 балдық жүйе',
                         style: TextStyle(
                           fontFamily: 'Montserrat',
                           fontSize: 16 * scaleW,
@@ -279,7 +295,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     DropdownMenuItem(
                       value: '5',
                       child: Text(
-                        '5 баллдық жүйе',
+                        '5 балдық жүйе',
                         style: TextStyle(
                           fontFamily: 'Montserrat',
                           fontSize: 16 * scaleW,
@@ -291,9 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       setState(() => selectedSystem = value ?? '100'),
                 ),
               ),
-
               SizedBox(height: 40 * scaleH),
-
               SizedBox(
                 width: 325 * scaleW,
                 height: 60 * scaleH,
@@ -316,7 +330,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-
               SizedBox(height: 30 * scaleH),
             ],
           ),

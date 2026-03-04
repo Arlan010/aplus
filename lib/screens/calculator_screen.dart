@@ -23,14 +23,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   List<Map<String, dynamic>> subjects = [];
 
   final TextEditingController desiredGradeController = TextEditingController();
-  String selectedSubject = "";
-  String calculatedExamGrade = "-";
+  String selectedSubject = '';
+  String calculatedExamGrade = '-';
 
   @override
   void initState() {
     super.initState();
     _currentTab = widget.initialTab;
     _fetchSubjectsAndGPA();
+  }
+
+  @override
+  void dispose() {
+    desiredGradeController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchSubjectsAndGPA() async {
@@ -81,9 +87,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       gpa100 = cnt == 0 ? 0 : sum / cnt;
       gpa4 = (gpa100 / 100.0) * 4.0;
 
-      selectedSubject = built.isNotEmpty
-          ? built.first['subject'] as String
-          : '';
+      selectedSubject = built.isNotEmpty ? built.first['subject'] as String : '';
 
       if (!mounted) return;
       setState(() {
@@ -101,7 +105,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _calculateRequiredScore() {
     final target = double.tryParse(desiredGradeController.text.trim());
-    if (target == null || selectedSubject.isEmpty) return;
+    if (target == null || selectedSubject.isEmpty) {
+      setState(() => calculatedExamGrade = 'Мәліметтерді толық енгізіңіз');
+      return;
+    }
+
+    if (target < 0 || target > 100) {
+      setState(() => calculatedExamGrade = 'Мақсат 0 мен 100 аралығында болуы керек');
+      return;
+    }
 
     final subject = subjects.firstWhere(
       (s) => s['subject'] == selectedSubject,
@@ -117,7 +129,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final required = target * (n + 1) - sum;
 
     setState(() {
-      calculatedExamGrade = required.toStringAsFixed(2);
+      if (required <= 0) {
+        calculatedExamGrade = 'Мақсатқа жеттіңіз';
+      } else if (required > 100) {
+        calculatedExamGrade = 'Бұл мақсатқа бір емтиханмен жету мүмкін емес';
+      } else {
+        calculatedExamGrade = '${required.toStringAsFixed(2)} балл керек';
+      }
     });
   }
 
@@ -164,12 +182,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               children: [
                 ...subjects.map((entry) {
                   double avg = 0;
-                  final list = entry["grades"] as List;
+                  final list = entry['grades'] as List;
                   if (list.isNotEmpty) {
                     avg =
-                        list
-                            .map((g) => g["grade"] as num)
-                            .reduce((a, b) => a + b) /
+                        list.map((g) => g['grade'] as num).reduce((a, b) => a + b) /
                         list.length;
                   }
 
@@ -186,7 +202,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          entry["subject"],
+                          entry['subject'],
                           style: TextStyle(
                             fontSize: 16 * scaleW,
                             fontFamily: 'Montserrat',
@@ -212,7 +228,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ),
                   ),
                   child: Text(
-                    "Бағаларды өзгерту",
+                    'Бағаларды өзгерту',
                     style: TextStyle(
                       fontSize: 20 * scaleW,
                       color: const Color(0xFF20409A),
@@ -223,7 +239,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ),
                 SizedBox(height: 35 * scaleH),
                 Text(
-                  "Орташа GPA (4.0): ${gpa4.toStringAsFixed(2)}",
+                  'Орташа GPA (4.0): ${gpa4.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 22 * scaleW,
                     fontWeight: FontWeight.w500,
@@ -243,7 +259,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ),
                     onPressed: _fetchSubjectsAndGPA,
                     child: Text(
-                      "Есептеу",
+                      'Есептеу',
                       style: TextStyle(
                         fontSize: 20 * scaleW,
                         color: Colors.black,
@@ -271,7 +287,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     controller: desiredGradeController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: "Қалаған орташа баға",
+                      labelText: 'Қалаған орташа баға',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12 * scaleW),
                       ),
@@ -287,7 +303,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         ? selectedSubject
                         : null,
                     decoration: InputDecoration(
-                      labelText: "Пән",
+                      labelText: 'Пән',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12 * scaleW),
                       ),
@@ -295,8 +311,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     items: subjects
                         .map(
                           (sub) => DropdownMenuItem<String>(
-                            value: sub["subject"] as String,
-                            child: Text(sub["subject"] as String),
+                            value: sub['subject'] as String,
+                            child: Text(sub['subject'] as String),
                           ),
                         )
                         .toList(),
@@ -313,7 +329,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ),
                   ),
                   child: Text(
-                    "Бағаларды өзгерту",
+                    'Бағаларды өзгерту',
                     style: TextStyle(
                       fontSize: 20 * scaleW,
                       color: const Color(0xFF20409A),
@@ -324,7 +340,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ),
                 SizedBox(height: 30 * scaleH),
                 Text(
-                  "Емтиханда $calculatedExamGrade балл жинау керек",
+                  calculatedExamGrade == '-'
+                      ? 'Емтихан нәтижесі осында көрсетіледі'
+                      : calculatedExamGrade,
                   style: TextStyle(
                     fontSize: 20 * scaleW,
                     fontFamily: 'Montserrat',
@@ -344,7 +362,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ),
                     onPressed: _calculateRequiredScore,
                     child: Text(
-                      "Есептеу",
+                      'Есептеу',
                       style: TextStyle(
                         fontSize: 20 * scaleW,
                         color: Colors.black,
@@ -381,7 +399,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildSwitchButton(
-                  text: "Орташа GPA",
+                  text: 'Орташа GPA',
                   active: _currentTab == 0,
                   onTap: () => setState(() => _currentTab = 0),
                   scaleW: scaleW,
@@ -389,7 +407,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ),
                 SizedBox(width: 10 * scaleW),
                 _buildSwitchButton(
-                  text: "Емтихан",
+                  text: 'Емтихан',
                   active: _currentTab == 1,
                   onTap: () => setState(() => _currentTab = 1),
                   scaleW: scaleW,

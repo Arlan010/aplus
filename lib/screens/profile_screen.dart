@@ -79,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Профиль сәтті жаңартылды ✅')),
+        const SnackBar(content: Text('Профиль сәтті жаңартылды')),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -97,7 +97,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _logout() async {
     await supabase.auth.signOut();
     if (!mounted) return;
-    // AuthGate/Welcome экран должен отреагировать на signOut сам
   }
 
   Widget _buildEditableField({
@@ -178,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: EdgeInsets.only(left: 8 * scaleW, bottom: 6 * scaleH),
             child: Text(
-              "Құпиясөз",
+              'Құпиясөз',
               style: TextStyle(
                 fontSize: 16 * scaleW,
                 fontWeight: FontWeight.w700,
@@ -207,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   foregroundColor: const Color(0xFF20409A),
                 ),
                 child: Text(
-                  "Құпиясөзді өзгерту",
+                  'Құпиясөзді өзгерту',
                   style: TextStyle(
                     fontSize: 16 * scaleW,
                     fontFamily: 'Montserrat',
@@ -229,42 +228,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final parentContext = context;
     final parentMessenger = ScaffoldMessenger.of(parentContext);
 
-    final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
+    final confirmPassController = TextEditingController();
 
     bool isSaving = false;
-    bool obscureOld = true;
     bool obscureNew = true;
+    bool obscureConfirm = true;
 
     Future<void> doSave(
       StateSetter setStateDialog,
       BuildContext dialogContext,
     ) async {
-      final user = supabase.auth.currentUser;
-      final email = user?.email;
-
-      final oldPass = oldPassController.text.trim();
       final newPass = newPassController.text.trim();
+      final confirmPass = confirmPassController.text.trim();
 
-      if (email == null) {
-        ScaffoldMessenger.of(
-          parentContext,
-        ).showSnackBar(const SnackBar(content: Text('Email табылмады')));
-        return;
-      }
-
-      if (oldPass.isEmpty || newPass.isEmpty) {
+      if (newPass.isEmpty || confirmPass.isEmpty) {
         parentMessenger.showSnackBar(
           const SnackBar(content: Text('Барлық өрістерді толтырыңыз')),
         );
         return;
       }
 
-      if (newPass.length < 6) {
+      if (newPass.length < 8) {
         parentMessenger.showSnackBar(
           const SnackBar(
-            content: Text('Жаңа құпиясөз кемінде 6 таңба болуы керек'),
+            content: Text('Жаңа құпиясөз кемінде 8 таңбадан тұруы керек'),
           ),
+        );
+        return;
+      }
+
+      if (newPass != confirmPass) {
+        parentMessenger.showSnackBar(
+          const SnackBar(content: Text('Құпиясөздер сәйкес келмейді')),
         );
         return;
       }
@@ -272,7 +268,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (dialogContext.mounted) setStateDialog(() => isSaving = true);
 
       try {
-        await supabase.auth.signInWithPassword(email: email, password: oldPass);
         await supabase.auth.updateUser(UserAttributes(password: newPass));
 
         if (!mounted) return;
@@ -284,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           parentMessenger.showSnackBar(
-            const SnackBar(content: Text('Құпиясөз сәтті өзгертілді ✅')),
+            const SnackBar(content: Text('Құпиясөз сәтті өзгертілді')),
           );
         });
       } on AuthException catch (e) {
@@ -317,23 +312,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
-                      controller: oldPassController,
-                      obscureText: obscureOld,
-                      decoration: InputDecoration(
-                        labelText: 'Ескі құпиясөз',
-                        suffixIcon: IconButton(
-                          onPressed: () =>
-                              setStateDialog(() => obscureOld = !obscureOld),
-                          icon: Icon(
-                            obscureOld
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
                       controller: newPassController,
                       obscureText: obscureNew,
                       decoration: InputDecoration(
@@ -343,6 +321,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               setStateDialog(() => obscureNew = !obscureNew),
                           icon: Icon(
                             obscureNew
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmPassController,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: 'Құпиясөзді растау',
+                        suffixIcon: IconButton(
+                          onPressed: () => setStateDialog(
+                            () => obscureConfirm = !obscureConfirm,
+                          ),
+                          icon: Icon(
+                            obscureConfirm
                                 ? Icons.visibility
                                 : Icons.visibility_off,
                           ),
@@ -360,9 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   dialogContext,
                                   rootNavigator: true,
                                 ).pop();
-                                WidgetsBinding.instance.addPostFrameCallback((
-                                  _,
-                                ) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
                                   if (!mounted) return;
                                   Navigator.of(parentContext).push(
                                     MaterialPageRoute(
@@ -448,20 +442,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             SizedBox(height: 25 * scaleH),
             _buildEditableField(
-              label: "Аты-жөніңіз",
+              label: 'Аты-жөніңіз',
               controller: _nameController,
               isEditing: _isEditingName,
-              onEditPressed: () =>
-                  setState(() => _isEditingName = !_isEditingName),
+              onEditPressed: () => setState(() => _isEditingName = !_isEditingName),
               scaleW: scaleW,
               scaleH: scaleH,
             ),
             _buildEditableField(
-              label: "Электрондық пошта",
+              label: 'Электрондық пошта',
               controller: _emailController,
               isEditing: _isEditingEmail,
-              onEditPressed: () =>
-                  setState(() => _isEditingEmail = !_isEditingEmail),
+              onEditPressed: () => setState(() => _isEditingEmail = !_isEditingEmail),
               scaleW: scaleW,
               scaleH: scaleH,
             ),
@@ -479,7 +471,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 child: Text(
-                  "Сақтау",
+                  'Сақтау',
                   style: TextStyle(
                     fontSize: 20 * scaleW,
                     fontFamily: 'Montserrat',
@@ -501,7 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 child: Text(
-                  "Шығу",
+                  'Шығу',
                   style: TextStyle(
                     fontSize: 20 * scaleW,
                     fontFamily: 'Montserrat',

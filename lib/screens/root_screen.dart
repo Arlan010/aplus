@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'home_screen.dart';
 import 'calculator_screen.dart';
 import 'grades_diary_screen.dart';
+import 'home_screen.dart';
 import 'profile_screen.dart';
 
 class RootScreen extends StatefulWidget {
@@ -36,13 +36,13 @@ class _RootScreenState extends State<RootScreen> {
         selectedItemColor: const Color(0xFF006FFD),
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Басты бет"),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Басты бет'),
           BottomNavigationBarItem(
             icon: Icon(Icons.calculate),
-            label: "Калькулятор",
+            label: 'Калькулятор',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Дневник"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Профиль"),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Күнделік'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
         ],
       ),
     );
